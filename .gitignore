@@ -1,0 +1,8 @@
+.vscode/*.*
+workspace.code-workspace
+desktop.ini
+freeze.txt
+*.*_model
+*.*_model.*
+*.*_vmodel
+*.*_vmodel.*
