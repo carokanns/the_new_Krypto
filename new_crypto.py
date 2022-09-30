@@ -86,9 +86,9 @@ def get_trends_data():
     pytrends = TrendReq(hl='en-US', tz=360)
     df_trend = get_all_dates()
     for ticker_name in ticker_names:
-        pytrends.build_payload(kw_list=[ticker_name],cat=7, timeframe='all', gprop='news')
+        pytrends.build_payload(kw_list=[ticker_name],cat=7, timeframe='all')
         df_temp = pytrends.interest_over_time()
-        # df_temp = df_temp.drop(columns=['isPartial'])
+        df_temp = df_temp.drop(columns=['isPartial'])
         df_temp.plot()
         df_trend = df_trend.merge(df_temp, how='left', left_index=True, right_index=True)
         df_trend[ticker_name] = df_trend[ticker_name].fillna(method='ffill')/30
@@ -100,9 +100,15 @@ def get_trends_data():
     return df_trend
 
 if st.button('Refresh'):
-    # delete all_tickers from sesion_state
-    del st.session_state.all_tickers
-    del st.session_state.df_trends
+    try:
+        del st.session_state.all_tickers
+    except:
+        pass    
+    
+    try:
+        del st.session_state.df_trends
+    except:
+        pass    
 
 choice = 'Graph...'
 # create a streamlit checkbox
@@ -117,8 +123,7 @@ all_tickers = st.session_state.all_tickers
 if choice == 'Graph...':
 
     if 'start_date' not in st.session_state:
-        st.session_state.start_date = st.date_input(
-            'Start date', dt.date(2022, 1, 1))
+        st.session_state.start_date = st.date_input('Start date', datetime.date(2022, 1, 1))
     else:
         st.session_state.start_date = st.date_input(
             'Start date', st.session_state.start_date)
@@ -180,7 +185,8 @@ if choice == 'Graph...':
 # %%
     if 'df_trends' not in st.session_state:
         st.session_state.df_trends = get_trends_data()
-
+    df_trends = st.session_state.df_trends
+    
     fig2, ax2 = plt.subplots()
     df_trends = st.session_state.df_trends.query('index >= @start_date')[
         ['Bitcoin_goog90', 'Ethereum_goog90', 'Ripple_goog90', 'Bitcoin Cash_goog90', '0X_goog90']]
