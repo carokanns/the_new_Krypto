@@ -87,7 +87,7 @@ def get_trends_data():
     pytrends = TrendReq()
     df_trend = get_all_dates()
     for ticker_name in ticker_names:
-        pytrends.build_payload(kw_list=[ticker_name],cat=7, timeframe='all')
+        pytrends.build_payload(kw_list=[ticker_name], cat=7, timeframe='all')
         df_temp = pytrends.interest_over_time()
         df_temp = df_temp.drop(columns=['isPartial'])
         df_temp.plot()
