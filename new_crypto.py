@@ -83,7 +83,8 @@ def get_all_dates():
 
 # get google trends data
 def get_trends_data():
-    pytrends = TrendReq(hl='en-US', tz=360)
+    # pytrends = TrendReq(hl='en-US', tz=360)
+    pytrends = TrendReq()
     df_trend = get_all_dates()
     for ticker_name in ticker_names:
         pytrends.build_payload(kw_list=[ticker_name],cat=7, timeframe='all')
@@ -185,6 +186,7 @@ if choice == 'Graph...':
 # %%
     if 'df_trends' not in st.session_state:
         st.session_state.df_trends = get_trends_data()
+        
     df_trends = st.session_state.df_trends
     
     fig2, ax2 = plt.subplots()
