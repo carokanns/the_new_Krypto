@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from pytrends.request import TrendReq
 import streamlit as st
 from datetime import datetime as dt
@@ -82,24 +83,34 @@ def get_all_dates():
     return df
 
 # get google trends data
+
+# @st.cache
 def get_trends_data():
     # pytrends = TrendReq(hl='en-US', tz=360)
-    pytrends = TrendReq()
+    
     df_trend = get_all_dates()
     for ticker_name in ticker_names:
-        pytrends.build_payload(kw_list=[ticker_name], cat=7, timeframe='all')
-        df_temp = pytrends.interest_over_time()
+        keyword = [ticker_name]
+        pytrend = TrendReq()
+        # pytrend.build_payload(kw_list=keyword) 
+        
+        pytrend.build_payload(kw_list=keyword, cat=7, timeframe='all')
+        df_temp = pytrend.interest_over_time()
         df_temp = df_temp.drop(columns=['isPartial'])
+        # df_temp.reset_index(inplace=True)
         df_temp.plot()
+        # input('next')
         df_trend = df_trend.merge(df_temp, how='left', left_index=True, right_index=True)
         df_trend[ticker_name] = df_trend[ticker_name].fillna(method='ffill')/30
         df_trend[ticker_name+'_goog30'] = df_trend[ticker_name].rolling(30, 1).mean()
         df_trend[ticker_name+'_goog90'] = df_trend[ticker_name].rolling(90, 1).mean()
         df_trend[ticker_name+'_goog250'] = df_trend[ticker_name].rolling(250, 1).mean()
-        
+    
     df_trend = df_trend[ticker_names + [ticker_name+'_goog30' for ticker_name in ticker_names] + [ticker_name+'_goog90' for ticker_name in ticker_names] + [ticker_name+'_goog250' for ticker_name in ticker_names]]
     return df_trend
 
+
+# get google trends data from keyword list
 if st.button('Refresh'):
     try:
         del st.session_state.all_tickers
