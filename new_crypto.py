@@ -244,7 +244,7 @@ def load_and_predict(file, data_, predictors):
     data = data[predictors].dropna()
     st.write(data.iloc[0:5][predictors])
     st.dataframe(data.iloc[-1:, :][predictors])
-    st.info(str(loaded_model)[:20])
+    st.info(loaded_model)
     return loaded_model.predict(data.iloc[-1:, :][predictors])
 
 
