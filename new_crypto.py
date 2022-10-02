@@ -238,7 +238,6 @@ if choice == 'Graph...':
 
 
 def load_and_predict(file, data_, predictors):
-    import xgboost as xgb
 
     data = data_.copy()
     # pickle load the file
