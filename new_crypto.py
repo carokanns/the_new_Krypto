@@ -231,8 +231,8 @@ if choice == 'Graph...':
 def load_and_predict(file, data, predictors):
     # pickle load the file
     loaded_model = pickle.load(open(file, 'rb'))
-    st.dataframe(data[predictors])
-    st.dataframe(data.iloc[-1:, :][predictors])
+    st.datawrite(data[predictors])
+    st.write(data.iloc[-1:, :][predictors])
     return loaded_model.predict(data.iloc[-1:, :][predictors])
 
 
