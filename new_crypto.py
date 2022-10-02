@@ -247,7 +247,7 @@ def add_google_trends(df_, df_trend, ticker, new_predictors):
     new_predictors.append(ticker_namn + '_goog90')
     df[ticker_namn + '_goog250'] = df_trend[ticker_namn + '_goog250']
     new_predictors.append(ticker_namn + '_goog250')
-
+    # st.dataframe(df)
     return df, new_predictors
 
 if choice == 'Prognos':
