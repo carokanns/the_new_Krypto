@@ -10,10 +10,10 @@ import pickle
 from datetime import timedelta
 import yfinance as yf
 from matplotlib import pyplot as plt
+from xgboost import XGBClassifier
 
 tickers = ['BTC-USD', 'ETH-USD', 'BCH-USD', 'ZRX-USD', 'XRP-USD']
 ticker_names = ['Bitcoin', 'Ethereum', 'Bitcoin Cash', '0X', 'Ripple']
-
 
 def get_data(ticker, start="1900-01-01", end=dt.today()):
     data = yf.download(ticker, start=None, end=None)
@@ -238,14 +238,19 @@ if choice == 'Graph...':
 
 
 def load_and_predict(file, data_, predictors):
+    import xgboost as xgb
+
     data = data_.copy()
     # pickle load the file
-    loaded_model = pickle.load(open(file, 'rb'))
+    # with open(file, 'rb') as f:
+    #     loaded_model = pickle.load(open(file, 'rb'))
+    xgb = XGBClassifier()
+    xgb.load_model(file)
     data = data[predictors].dropna()
-    st.write(data.iloc[0:5][predictors])
-    st.dataframe(data.iloc[-1:, :][predictors])
-    st.info(loaded_model)
-    return loaded_model.predict(data.iloc[-1:, :][predictors])
+    # st.write(data.iloc[-5:][predictors])
+    # st.dataframe(data.iloc[-1:, :][predictors])
+    # st.info(xgb)
+    return xgb.predict(data.iloc[-1:, :][predictors])
 
 
 def add_google_trends(df_, df_trend, ticker, new_predictors):
@@ -292,7 +297,7 @@ if choice == 'Prognos':
         BTC_data1, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC1 gör predict på {BTC_data1.iloc[-1].name}")
     # st.dataframe(BTC_data1.iloc[-3:][new_predictors])
-    tomorrow_up = load_and_predict('BTC_y1.pkl', BTC_data1, new_predictors)
+    tomorrow_up = load_and_predict('BTC_y1.json', BTC_data1, new_predictors)
     # st.info(tomorrow_up[0])
     # st.info(f"BTC {BTC_data1.iloc[-1].name}, {BTC_data1.iloc[-1][['Tomorrow','y1']]}")
     BTC_data2, new_predictors = new_features(BTC, 'Close', 'y2')
@@ -300,7 +305,7 @@ if choice == 'Prognos':
         BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC2 gör predict på {BTC_data2.iloc[-1].name}")
     # st.dataframe(BTC_data2.iloc[-3:][new_predictors])
-    two_days_upp = load_and_predict('BTC_y2.pkl', BTC_data2, new_predictors)
+    two_days_upp = load_and_predict('BTC_y2.json', BTC_data2, new_predictors)
     # st.info(two_days_upp[0])
     col1.metric(tomorrow, "", "+ " if tomorrow_up[0] else "- ")
     col1.metric(day_after, "", "+ " if two_days_upp[0] else "- ")
@@ -316,12 +321,12 @@ if choice == 'Prognos':
     ETH_data1, new_predictors = add_google_trends(
         ETH_data1, st.session_state.df_trends, 'ETH-USD', new_predictors)
 
-    tomorrow_up = load_and_predict('ETH_y1.pkl', ETH_data1, new_predictors)
+    tomorrow_up = load_and_predict('ETH_y1.json', ETH_data1, new_predictors)
     ETH_data2, new_predictors = new_features(ETH, 'Close', 'y2')
     ETH_data2, new_predictors = add_google_trends(
         ETH_data2, st.session_state.df_trends, 'ETH-USD', new_predictors)
 
-    two_days_upp = load_and_predict('ETH_y2.pkl', ETH_data2, new_predictors)
+    two_days_upp = load_and_predict('ETH_y2.json', ETH_data2, new_predictors)
     col2.metric(tomorrow, "", "+ " if tomorrow_up else "- ")
     col2.metric(day_after, "", "+ " if two_days_upp else "- ")
     # st.info(f'{tomorrow_up}  {two_days_upp}')
@@ -336,12 +341,12 @@ if choice == 'Prognos':
     BCH_data1, new_predictors = add_google_trends(
         BCH_data1, st.session_state.df_trends, 'BCH-USD', new_predictors)
 
-    tomorrow_up = load_and_predict('BCH_y1.pkl', BCH_data1, new_predictors)
+    tomorrow_up = load_and_predict('BCH_y1.json', BCH_data1, new_predictors)
     BCH_data2, new_predictors = new_features(BCH, 'Close', 'y2')
     BCH_data2, new_predictors = add_google_trends(
         BCH_data2, st.session_state.df_trends, 'BCH-USD', new_predictors)
 
-    two_days_upp = load_and_predict('BCH_y2.pkl', BCH_data2, new_predictors)
+    two_days_upp = load_and_predict('BCH_y2.json', BCH_data2, new_predictors)
     col3.metric(tomorrow, "", "+ " if tomorrow_up else "- ")
     col3.metric(day_after, "", "+ " if two_days_upp else "- ")
     # st.info(f'{tomorrow_up}  {two_days_upp}')
@@ -357,12 +362,12 @@ if choice == 'Prognos':
     ZRX_data1, new_predictors = add_google_trends(
         ZRX_data1, st.session_state.df_trends, 'ZRX-USD', new_predictors)
 
-    tomorrow_up = load_and_predict('ZRX_y1.pkl', ZRX_data1, new_predictors)
+    tomorrow_up = load_and_predict('ZRX_y1.json', ZRX_data1, new_predictors)
     ZRX_data2, new_predictors = new_features(ZRX, 'Close', 'y2')
     ZRX_data2, new_predictors = add_google_trends(
         ZRX_data2, st.session_state.df_trends, 'ZRX-USD', new_predictors)
 
-    two_days_upp = load_and_predict('ZRX_y2.pkl', ZRX_data2, new_predictors)
+    two_days_upp = load_and_predict('ZRX_y2.json', ZRX_data2, new_predictors)
     col4.metric(tomorrow, "", "+ " if tomorrow_up else "- ")
     col4.metric(day_after, "", "+ " if two_days_upp else "- ")
     # st.info(f'{tomorrow_up}  {two_days_upp}')
@@ -377,12 +382,12 @@ if choice == 'Prognos':
     XRP_data1, new_predictors = add_google_trends(
         XRP_data1, st.session_state.df_trends, 'XRP-USD', new_predictors)
 
-    tomorrow_up = load_and_predict('XRP_y1.pkl', XRP_data1, new_predictors)
+    tomorrow_up = load_and_predict('XRP_y1.json', XRP_data1, new_predictors)
     XRP_data2, new_predictors = new_features(XRP, 'Close', 'y2')
     XRP_data2, new_predictors = add_google_trends(
         XRP_data2, st.session_state.df_trends, 'XRP-USD', new_predictors)
 
-    two_days_upp = load_and_predict('XRP_y2.pkl', XRP_data2, new_predictors)
+    two_days_upp = load_and_predict('XRP_y2.json', XRP_data2, new_predictors)
 
     col5.metric(tomorrow, "", "+ " if tomorrow_up else "- ")
     col5.metric(day_after, "", "+ " if two_days_upp else "- ")
