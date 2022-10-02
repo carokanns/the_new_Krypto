@@ -240,8 +240,7 @@ if choice == 'Graph...':
 def load_and_predict(file, data_, predictors):
 
     data = data_.copy()
-    import xgboost 
-    xgb = xgboost.XGBClassifier()
+    xgb = XGBClassifier()
     xgb.load_model(file)
     data = data[predictors].dropna()
     # st.write(data.iloc[-5:][predictors])
