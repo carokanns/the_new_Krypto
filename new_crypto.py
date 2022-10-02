@@ -6,7 +6,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import ta
-import pickle
+# import pickle
 from datetime import timedelta
 import yfinance as yf
 from matplotlib import pyplot as plt
