@@ -240,10 +240,8 @@ if choice == 'Graph...':
 def load_and_predict(file, data_, predictors):
 
     data = data_.copy()
-    # pickle load the file
-    # with open(file, 'rb') as f:
-    #     loaded_model = pickle.load(open(file, 'rb'))
-    xgb = XGBClassifier()
+    import xgboost 
+    xgb = xgboost.XGBClassifier()
     xgb.load_model(file)
     data = data[predictors].dropna()
     # st.write(data.iloc[-5:][predictors])

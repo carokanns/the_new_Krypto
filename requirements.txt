@@ -12,7 +12,7 @@ missingno==0.5.1
 msrest==0.7.1
 oauthlib==3.2.0
 plotly==5.9.0
-streamlit==1.10.0
+streamlit==1.13.0
 matplotlib==3.5.2  
 numpy==1.22.3
 pandas==1.4.3 
