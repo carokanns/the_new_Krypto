@@ -45,7 +45,8 @@ def new_features(df_, ticker, target):
     df['After_tomorrow'] = df[ticker].shift(-2)
     df['y1'] = (df['Tomorrow'] > df[ticker]).astype(int)
     df['y2'] = (df['After_tomorrow'] > df[ticker]).astype(int)
-    df.dropna(inplace=True)
+    # st.dataframe(df.iloc[-3:][['Tomorrow', 'After_tomorrow', 'y1', 'y2']])
+    # df.dropna(inplace=True)
 
     for horizon in horizons:
         rolling_averages = df.rolling(horizon, 1).mean()
@@ -59,7 +60,8 @@ def new_features(df_, ticker, target):
         new_predictors += [ratio_column, trend_column]
 
     new_predictors.append('stoch_k')
-    df = df.dropna()
+    # df = df.dropna()
+    # st.dataframe(df.iloc[-3:][new_predictors])
     return df, new_predictors
 
 
@@ -98,9 +100,10 @@ def get_trends_data():
         df_temp = pytrend.interest_over_time()
         df_temp = df_temp.drop(columns=['isPartial'])
         # df_temp.reset_index(inplace=True)
-        df_temp.plot()
-        # input('next')
+        # st.info(keyword)
+        # st.info(f"last date before merge {df_trend.index[-1]}")
         df_trend = df_trend.merge(df_temp, how='left', left_index=True, right_index=True)
+        # st.info(f"last date after merge {df_trend.index[-1]}")
         df_trend[ticker_name] = df_trend[ticker_name].fillna(method='ffill')/30
         df_trend[ticker_name+'_goog30'] = df_trend[ticker_name].rolling(30, 1).mean()
         df_trend[ticker_name+'_goog90'] = df_trend[ticker_name].rolling(90, 1).mean()
@@ -112,28 +115,21 @@ def get_trends_data():
 
 # get google trends data from keyword list
 if st.button('Refresh'):
-    try:
+    if 'all_tickers' in st.session_state:
         del st.session_state.all_tickers
-    except:
-        pass    
     
-    try:
+    if 'df_trend' in st.session_state:
         del st.session_state.df_trends
-    except:
-        pass    
-
+    
 choice = 'Graph...'
-# create a streamlit checkbox
 choice = st.sidebar.radio('Vad vill du se', ('Graph...', 'Prognos'), index=0)
 
 if 'all_tickers' not in st.session_state:
-    # st.write('not loaded')
     st.session_state.all_tickers = get_all(tickers)
 
 all_tickers = st.session_state.all_tickers
 
 if choice == 'Graph...':
-
     if 'start_date' not in st.session_state:
         st.session_state.start_date = st.date_input('Start date', datetime.date(2022, 1, 1))
     else:
@@ -217,7 +213,7 @@ if choice == 'Graph...':
     # set theme
     plt.style.use('fivethirtyeight')
     st.pyplot(fig2)
-
+    # st.info(df_trends.iloc[-1, :].name)
     exp = st.expander('Crypto Förkortningar')
     exp.write("""BTC = Bitcoin   
               ETH = Ethereum   
@@ -232,7 +228,7 @@ def load_and_predict(file, data, predictors):
     # pickle load the file
     loaded_model = pickle.load(open(file, 'rb'))
     # st.write(data[predictors])
-    st.dataframe(data.iloc[-1:, :][predictors])
+    # st.dataframe(data.iloc[-1:, :][predictors])
     return loaded_model.predict(data.iloc[-1:, :][predictors])
 
 
@@ -264,25 +260,31 @@ if choice == 'Prognos':
                  datetime.timedelta(days=2)).strftime("%A")
     """Priser i US$
     Prognos för i morgon och övermorgon"""
-    # all_tickers = get_all(tickers)
 
     col1, col2, col3 = st.columns(3)
 
     col1.markdown('## Bitcoin')
     BTC = all_tickers['BTC-USD']
     dagens = round(BTC.iloc[-1].Close, 1)
+    
     latest = "+ " if latest_is_up(BTC) else "- "
     col1.metric("Dagens pris $", str(dagens), latest)
 
     BTC_data1, new_predictors = new_features(BTC, 'Close', 'y1')
     BTC_data1, new_predictors = add_google_trends(BTC_data1, st.session_state.df_trends, 'BTC-USD', new_predictors)
-    
+    # st.info(f"BTC1 gör predict på {BTC_data1.iloc[-1].name}")
+    # st.dataframe(BTC_data1.iloc[-3:][new_predictors])
     tomorrow_up = load_and_predict('BTC_y1.pkl', BTC_data1, new_predictors)
+    # st.info(tomorrow_up[0])
+    # st.info(f"BTC {BTC_data1.iloc[-1].name}, {BTC_data1.iloc[-1][['Tomorrow','y1']]}")
     BTC_data2, new_predictors = new_features(BTC, 'Close', 'y2')
     BTC_data2, new_predictors = add_google_trends(BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
+    # st.info(f"BTC2 gör predict på {BTC_data2.iloc[-1].name}")
+    # st.dataframe(BTC_data2.iloc[-3:][new_predictors])
     two_days_upp = load_and_predict('BTC_y2.pkl', BTC_data2, new_predictors)
-    col1.metric(tomorrow, "", "+ " if tomorrow_up else "- ")
-    col1.metric(day_after, "", "+ " if two_days_upp else "- ")
+    # st.info(two_days_upp[0])
+    col1.metric(tomorrow, "", "+ " if tomorrow_up[0] else "- ")
+    col1.metric(day_after, "", "+ " if two_days_upp[0] else "- ")
     # st.info(f'{tomorrow_up}  {two_days_upp}')
 
     col2.markdown('## Ether')
