@@ -1,10 +1,10 @@
 pandas-ta
-xgboost
+xgboost==1.6.1
 ta
 python-dateutil
 pytrends
-yfinance
+yfinance==0.1.72
 google-crc32c
-streamlit
-matplotlib
-pandas 
+streamlit==1.13.0
+matplotlib==3.5.2
+pandas==1.4.3
