@@ -147,7 +147,7 @@ if st.button('Refresh'):
     st.write('xgboost version: {}'.format(xgb.__version__))
 
 choice = 'Graph...'
-choice = st.sidebar.radio('Vad vill du se', ('Graph...', 'Prognos'), index=0)
+choice = st.sidebar.radio('what do you want to see', ('Graph...', 'Price forecasts'), index=0)
 
 if 'all_tickers' not in st.session_state:
     st.session_state.all_tickers = get_all(tickers)
@@ -280,7 +280,7 @@ def add_google_trends(df_, df_trend, ticker, new_predictors):
     return df, new_predictors
 
 
-if choice == 'Prognos':
+if choice == 'Price forecasts':
     if 'df_trends' not in st.session_state:
         st.session_state.df_trends = get_trends_data()
 
@@ -290,8 +290,8 @@ if choice == 'Prognos':
                 datetime.timedelta(days=1)).strftime("%A")
     day_after = (datetime.date.today() +
                  datetime.timedelta(days=2)).strftime("%A")
-    """Priser i US$
-    Prognos för i morgon och övermorgon"""
+    """- Todays prices in US$ and if it went up or down compared to yesterday      
+- Forecast if prices will go up or down tomorrow and the day after tomorrow"""
 
     col1, col2, col3 = st.columns(3)
 
