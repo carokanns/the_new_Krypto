@@ -1,0 +1,8 @@
+text
+htmlmin==0.1.12
+hyperopt==0.2.7
+isodate==0.6.1
+missingno==0.5.1
+msrest==0.7.1
+oauthlib==3.2.0
+plotly==5.9.0

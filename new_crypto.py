@@ -4,13 +4,9 @@ import streamlit as st
 from datetime import datetime as dt
 import datetime
 import pandas as pd
-import numpy as np
 import ta
-# import pickle
-from datetime import timedelta
 import yfinance as yf
-from matplotlib import pyplot as plt
-from xgboost import XGBClassifier
+import xgboost as xgb
 
 tickers = ['BTC-USD', 'ETH-USD', 'BCH-USD', 'ZRX-USD', 'XRP-USD']
 ticker_names = ['Bitcoin', 'Ethereum', 'Bitcoin Cash', '0X', 'Ripple']
@@ -240,13 +236,13 @@ if choice == 'Graph...':
 def load_and_predict(file, data_, predictors):
 
     data = data_.copy()
-    xgb = XGBClassifier()
-    xgb.load_model(file)
+    model = xgb.XGBClassifier()
+    model.load_model(file)
     data = data[predictors].dropna()
     # st.write(data.iloc[-5:][predictors])
     # st.dataframe(data.iloc[-1:, :][predictors])
-    # st.info(xgb)
-    return xgb.predict(data.iloc[-1:, :][predictors])
+    # st.info(model)
+    return model.predict(data.iloc[-1:, :][predictors])
 
 
 def add_google_trends(df_, df_trend, ticker, new_predictors):
@@ -297,8 +293,7 @@ if choice == 'Prognos':
     # st.info(tomorrow_up[0])
     # st.info(f"BTC {BTC_data1.iloc[-1].name}, {BTC_data1.iloc[-1][['Tomorrow','y1']]}")
     BTC_data2, new_predictors = new_features(BTC, 'Close', 'y2')
-    BTC_data2, new_predictors = add_google_trends(
-        BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
+    BTC_data2, new_predictors = add_google_trends(BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC2 gör predict på {BTC_data2.iloc[-1].name}")
     # st.dataframe(BTC_data2.iloc[-3:][new_predictors])
     two_days_upp = load_and_predict('BTC_y2.json', BTC_data2, new_predictors)
