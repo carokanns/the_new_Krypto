@@ -121,30 +121,12 @@ def get_trends_data():
 
 
 # get google trends data from keyword list
-if st.button('Refresh'):
+if st.button('Refresh Data'):
     if 'all_tickers' in st.session_state:
         del st.session_state.all_tickers
 
     if 'df_trend' in st.session_state:
         del st.session_state.df_trends
-    # print pandas version
-    st.write('pandas version: {}'.format(pd.__version__))
-    # print numpy version
-    # st.write('numpy version: {}'.format(np.__version__))
-    # print matplotlib version
-    st.write('matplotlib version: {}'.format(plt.matplotlib.__version__))
-    # print yfinance version
-    st.write('yfinance version: {}'.format(yf.__version__))
-    # print pickle version
-    # print('pickle version: {}'.format(pickle.format_version))
-
-    # print ta version
-    # print('ta version: {}'.format(ta.__version__))
-    # '0.10.2'
-    # print streamlit version
-
-    st.write('streamlit version: {}'.format(st.__version__))
-    st.write('xgboost version: {}'.format(xgb.__version__))
 
 choice = 'Graph...'
 choice = st.sidebar.radio('what do you want to see', ('Graph...', 'Price forecasts'), index=0)
