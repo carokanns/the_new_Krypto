@@ -7,5 +7,4 @@ ta==0.10.2
 streamlit==1.13.0
 xgboost==1.6.1
 sklearn
-google-crc32
 pandas-ta==0.3.14b0
