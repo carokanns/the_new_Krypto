@@ -11,6 +11,7 @@ import xgboost as xgb
 tickers = ['BTC-USD', 'ETH-USD', 'BCH-USD', 'ZRX-USD', 'XRP-USD']
 ticker_names = ['Bitcoin', 'Ethereum', 'Bitcoin Cash', '0X', 'Ripple']
 
+
 def get_data(ticker, start="1900-01-01", end=dt.today()):
     data = yf.download(ticker, start=None, end=None)
     data.reset_index(inplace=True)
@@ -27,11 +28,11 @@ def get_all(tickers):
     return all_tickers
 
 
-def new_features(df_, ticker, target):
+def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
     df = df_.copy()
     # tidsintervall i dagar för rullande medelvärden
     # skulle helst ha med upp till 4 år men ETH har för få värden
-    horizons = [2, 5, 60, 250]
+
     new_predictors = []
     df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10)
 
@@ -42,23 +43,38 @@ def new_features(df_, ticker, target):
     df['After_tomorrow'] = df[ticker].shift(-2)
     df['y1'] = (df['Tomorrow'] > df[ticker]).astype(int)
     df['y2'] = (df['After_tomorrow'] > df[ticker]).astype(int)
-    # st.dataframe(df.iloc[-3:][['Tomorrow', 'After_tomorrow', 'y1', 'y2']])
     # df.dropna(inplace=True)
 
     for horizon in horizons:
-        rolling_averages = df.rolling(horizon, 1).mean()
+        rolling_averages = df.rolling(horizon, min_periods=1).mean()
 
         ratio_column = f"Close_Ratio_{horizon}"
         df[ratio_column] = df[ticker] / rolling_averages[ticker]
 
+        # edit_column = f"edit_{horizon}"
+        # df[edit_column] = rolling_averages['edit_count']
+        ## Den ovan ändras till min Google Trends och görs på annan plats
+
+        rolling = df.rolling(horizon, closed='left', min_periods=1).mean()
+
         trend_column = f"Trend_{horizon}"
-        df[trend_column] = df.shift(1).rolling(horizon, 1).sum()[target]
+        target_name = 'Tomorrow' if target == 'y1' else 'After_tomorrow'
+        # OBS! Skilj trend_column från Google Trends
+        df[trend_column] = rolling[target_name]
 
         new_predictors += [ratio_column, trend_column]
-
-    new_predictors.append('stoch_k')
+    if 'month' in extra:
+        df['month'] = df.index.month
+        new_predictors += ['month']
+    if 'day_of_month' in extra:
+        df['day_of_month'] = df.index.day
+        new_predictors += ['day_of_month']
+    if 'day_of_week' in extra:
+        df['day_of_week'] = df.index.dayofweek
+        new_predictors += ['day_of_week']  
+    
+    new_predictors += ['stoch_k']
     # df = df.dropna()
-    # st.dataframe(df.iloc[-3:][new_predictors])
     return df, new_predictors
 
 
@@ -84,10 +100,8 @@ def get_all_dates():
     df = pd.DataFrame(index=dates)
     return df
 
-# get google trends data
 
 # @st.cache
-
 
 def get_trends_data():
     # pytrends = TrendReq(hl='en-US', tz=360)
@@ -120,16 +134,19 @@ def get_trends_data():
     return df_trend
 
 
-# get google trends data from keyword list
-if st.button('Refresh Data'):
+
+choice = 'Graph...'
+choice = st.sidebar.radio('what do you want to see',
+                          ('Graph...', 'Price forecasts'), index=0)
+
+if st.sidebar.button(f'Refresh Data'):
     if 'all_tickers' in st.session_state:
         del st.session_state.all_tickers
 
     if 'df_trend' in st.session_state:
         del st.session_state.df_trends
 
-choice = 'Graph...'
-choice = st.sidebar.radio('what do you want to see', ('Graph...', 'Price forecasts'), index=0)
+
 
 if 'all_tickers' not in st.session_state:
     st.session_state.all_tickers = get_all(tickers)
@@ -152,11 +169,11 @@ if choice == 'Graph...':
     XRP = all_tickers['XRP-USD'].query('index >= @start_date')
     ZRX = all_tickers['ZRX-USD'].query('index >= @start_date')
 
-    BTC = BTC.rolling(60).mean()
-    ETH = ETH.rolling(60).mean()
-    BCH = BCH.rolling(60).mean()
-    XRP = XRP.rolling(60).mean()
-    ZRX = ZRX.rolling(60).mean()
+    BTC = BTC.rolling(30).mean()
+    ETH = ETH.rolling(30).mean()
+    BCH = BCH.rolling(30).mean()
+    XRP = XRP.rolling(30).mean()
+    ZRX = ZRX.rolling(30).mean()
 
     # compute relative development
     BTC['rel_dev'] = BTC.Close / BTC.Close.shift(1) - 1
@@ -184,6 +201,9 @@ if choice == 'Graph...':
     just = ZRX.rel_dev.head(1).values[0]
     ZRX.rel_dev -= just
 
+    last_date = BTC.index[-1].date()
+    st.info(f'Until {last_date}')
+
     fig, ax = plt.subplots()
     ax.plot(BTC.index, BTC.rel_dev, label='BTC')
     ax.plot(ETH.index, ETH['rel_dev'], label='ETH')
@@ -191,9 +211,12 @@ if choice == 'Graph...':
     ax.plot(XRP.index, XRP['rel_dev'], label='XRP')
     ax.plot(ZRX.index, ZRX['rel_dev'], label='ZRX')
     ax.legend()
+
     ax.set(ylabel="Price US$",
-           title='Crypto relativ utveckling med alla startvärden satt till 0')
-    # bigger graph sizes
+           title=f'Crypto relative deveolpment starting from 0')
+    ax.title.set_fontsize(28)
+    ax.tick_params(axis='both', which='major', labelsize=18)
+    
     fig.set_size_inches(14, 12)
     # set theme
     plt.style.use('fivethirtyeight')
@@ -216,13 +239,18 @@ if choice == 'Graph...':
     ax2.plot(df_trends.index, df_trends['0X_goog90'], label='ZRX')
 
     ax2.legend()
-    ax2.set(ylabel="Antal sök", title='Crypto Google Trends')
-    # bigger graph sizes
+    last_date = df_trends.index[-1].date()
+    ax2.set(ylabel="Trafic",
+            title=f'Crypto Google Trends until {last_date}')
+    ax2.title.set_fontsize(28)
+    ax2.tick_params(axis='both', which='major', labelsize=18)
+    
     fig2.set_size_inches(14, 12)
     # set theme
     plt.style.use('fivethirtyeight')
     st.pyplot(fig2)
     # st.info(df_trends.iloc[-1, :].name)
+
     exp = st.expander('Crypto Förkortningar')
     exp.write("""BTC = Bitcoin   
               ETH = Ethereum   
@@ -266,14 +294,21 @@ if choice == 'Price forecasts':
     if 'df_trends' not in st.session_state:
         st.session_state.df_trends = get_trends_data()
 
-    # day name today
+    horizons = [2,5,15,30,60,90,250]
+    etra = ['day_of_week', 'day_of_month']  # skippar 'month
+    
+    
+    # day names
     today = datetime.datetime.today().strftime("%A")
     tomorrow = (datetime.date.today() +
                 datetime.timedelta(days=1)).strftime("%A")
     day_after = (datetime.date.today() +
                  datetime.timedelta(days=2)).strftime("%A")
-    """- Todays prices in US$ and if it went up or down compared to yesterday      
-- Forecast if prices will go up or down tomorrow and the day after tomorrow"""
+    last_date = all_tickers['BTC-USD'].index[-1].date()
+    
+    st.info(
+        f'{last_date}\n- Todays prices in US$ and if it went up or down compared to yesterday\n - Predictions for {tomorrow} and {day_after}')
+    
 
     col1, col2, col3 = st.columns(3)
 
@@ -284,7 +319,7 @@ if choice == 'Price forecasts':
     latest = "+ " if latest_is_up(BTC) else "- "
     col1.metric("Dagens pris $", str(dagens), latest)
 
-    BTC_data1, new_predictors = new_features(BTC, 'Close', 'y1')
+    BTC_data1, new_predictors = new_features(BTC, 'Close', 'y1', horizons=horizons,extra=etra)
     BTC_data1, new_predictors = add_google_trends(
         BTC_data1, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC1 gör predict på {BTC_data1.iloc[-1].name}")
@@ -292,8 +327,9 @@ if choice == 'Price forecasts':
     tomorrow_up = load_and_predict('BTC_y1.json', BTC_data1, new_predictors)
     # st.info(tomorrow_up[0])
     # st.info(f"BTC {BTC_data1.iloc[-1].name}, {BTC_data1.iloc[-1][['Tomorrow','y1']]}")
-    BTC_data2, new_predictors = new_features(BTC, 'Close', 'y2')
-    BTC_data2, new_predictors = add_google_trends(BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
+    BTC_data2, new_predictors = new_features(BTC, 'Close', 'y2', horizons=horizons,extra=etra)
+    BTC_data2, new_predictors = add_google_trends(
+        BTC_data2, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC2 gör predict på {BTC_data2.iloc[-1].name}")
     # st.dataframe(BTC_data2.iloc[-3:][new_predictors])
     two_days_upp = load_and_predict('BTC_y2.json', BTC_data2, new_predictors)
@@ -308,12 +344,12 @@ if choice == 'Price forecasts':
     latest = "+ " if latest_is_up(ETH) else "- "
     col2.metric("Dagens pris $", str(dagens), latest)
 
-    ETH_data1, new_predictors = new_features(ETH, 'Close', 'y1')
+    ETH_data1, new_predictors = new_features(ETH, 'Close', 'y1', horizons=horizons,extra=etra)
     ETH_data1, new_predictors = add_google_trends(
         ETH_data1, st.session_state.df_trends, 'ETH-USD', new_predictors)
 
     tomorrow_up = load_and_predict('ETH_y1.json', ETH_data1, new_predictors)
-    ETH_data2, new_predictors = new_features(ETH, 'Close', 'y2')
+    ETH_data2, new_predictors = new_features(ETH, 'Close', 'y2', horizons=horizons,extra=etra)
     ETH_data2, new_predictors = add_google_trends(
         ETH_data2, st.session_state.df_trends, 'ETH-USD', new_predictors)
 
@@ -328,12 +364,12 @@ if choice == 'Price forecasts':
     latest = "+ " if latest_is_up(BCH) else "- "
     col3.metric("Dagens pris $", str(dagens), latest)
 
-    BCH_data1, new_predictors = new_features(BCH, 'Close', 'y1')
+    BCH_data1, new_predictors = new_features(BCH, 'Close', 'y1', horizons=horizons  ,extra=etra)
     BCH_data1, new_predictors = add_google_trends(
         BCH_data1, st.session_state.df_trends, 'BCH-USD', new_predictors)
 
     tomorrow_up = load_and_predict('BCH_y1.json', BCH_data1, new_predictors)
-    BCH_data2, new_predictors = new_features(BCH, 'Close', 'y2')
+    BCH_data2, new_predictors = new_features(BCH, 'Close', 'y2', horizons=horizons  ,extra=etra)
     BCH_data2, new_predictors = add_google_trends(
         BCH_data2, st.session_state.df_trends, 'BCH-USD', new_predictors)
 
@@ -349,12 +385,12 @@ if choice == 'Price forecasts':
     latest = "+ " if latest_is_up(ZRX) else "- "
     col4.metric("Dagens pris $", str(dagens), latest)
 
-    ZRX_data1, new_predictors = new_features(ZRX, 'Close', 'y1')
+    ZRX_data1, new_predictors = new_features(ZRX, 'Close', 'y1', horizons=horizons  ,extra=etra)
     ZRX_data1, new_predictors = add_google_trends(
         ZRX_data1, st.session_state.df_trends, 'ZRX-USD', new_predictors)
 
     tomorrow_up = load_and_predict('ZRX_y1.json', ZRX_data1, new_predictors)
-    ZRX_data2, new_predictors = new_features(ZRX, 'Close', 'y2')
+    ZRX_data2, new_predictors = new_features(ZRX, 'Close', 'y2', horizons=horizons  ,extra=etra)
     ZRX_data2, new_predictors = add_google_trends(
         ZRX_data2, st.session_state.df_trends, 'ZRX-USD', new_predictors)
 
@@ -369,12 +405,12 @@ if choice == 'Price forecasts':
     latest = "+ " if latest_is_up(XRP) else "- "
     col5.metric("Dagens pris $", str(dagens), latest)
 
-    XRP_data1, new_predictors = new_features(XRP, 'Close', 'y1')
+    XRP_data1, new_predictors = new_features(XRP, 'Close', 'y1', horizons=horizons  ,extra=etra)
     XRP_data1, new_predictors = add_google_trends(
         XRP_data1, st.session_state.df_trends, 'XRP-USD', new_predictors)
 
     tomorrow_up = load_and_predict('XRP_y1.json', XRP_data1, new_predictors)
-    XRP_data2, new_predictors = new_features(XRP, 'Close', 'y2')
+    XRP_data2, new_predictors = new_features(XRP, 'Close', 'y2', horizons=horizons ,extra=etra)
     XRP_data2, new_predictors = add_google_trends(
         XRP_data2, st.session_state.df_trends, 'XRP-USD', new_predictors)
 
