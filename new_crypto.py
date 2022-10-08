@@ -34,8 +34,10 @@ def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
     # skulle helst ha med upp till 4 år men ETH har för få värden
 
     new_predictors = []
-    df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10)
-
+    if 'stoch_k' in extra:
+        df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10)
+        new_predictors += ['stoch_k']
+        
     # Target
     # tomorrow's close price - alltså nästa dag
     df['Tomorrow'] = df[ticker].shift(-1)
@@ -63,6 +65,7 @@ def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
         df[trend_column] = rolling[target_name]
 
         new_predictors += [ratio_column, trend_column]
+        
     if 'month' in extra:
         df['month'] = df.index.month
         new_predictors += ['month']
@@ -73,7 +76,6 @@ def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
         df['day_of_week'] = df.index.dayofweek
         new_predictors += ['day_of_week']  
     
-    new_predictors += ['stoch_k']
     # df = df.dropna()
     return df, new_predictors
 
@@ -176,30 +178,40 @@ if choice == 'Graph...':
     ZRX = ZRX.rolling(30).mean()
 
     # compute relative development
-    BTC['rel_dev'] = BTC.Close / BTC.Close.shift(1) - 1
-    BTC.dropna(inplace=True)
-    just = BTC.rel_dev.head(1).values[0]
-    BTC.rel_dev -= just
+    def rel_dev(df_ticker_):
+        df_ticker = df_ticker_.copy()
+        df_ticker = df_ticker/df_ticker.shift(1)-1
+        df_ticker = df_ticker.dropna()
+        just = df_ticker.head(1).values[0]
+        df_ticker -= just
+        return df_ticker
+           
+    BTC['rel_dev'] = rel_dev(BTC.Close)
+    ETH['rel_dev'] = rel_dev(ETH.Close)
+    BCH['rel_dev'] = rel_dev(BCH.Close)
+    XRP['rel_dev'] = rel_dev(XRP.Close)
+    ZRX['rel_dev'] = rel_dev(ZRX.Close)
+    
 
-    ETH['rel_dev'] = ETH.Close / ETH.Close.shift(1) - 1
-    ETH.dropna(inplace=True)
-    just = ETH.rel_dev.head(1).values[0]
-    ETH.rel_dev -= just
+    # ETH['rel_dev'] = ETH.Close / ETH.Close.shift(1) - 1
+    # ETH.dropna(inplace=True)
+    # just = ETH.rel_dev.head(1).values[0]
+    # ETH.rel_dev -= just
 
-    BCH['rel_dev'] = BCH.Close / BCH.Close.shift(1) - 1
-    BCH.dropna(inplace=True)
-    just = BCH.rel_dev.head(1).values[0]
-    BCH.rel_dev -= just
+    # BCH['rel_dev'] = BCH.Close / BCH.Close.shift(1) - 1
+    # BCH.dropna(inplace=True)
+    # just = BCH.rel_dev.head(1).values[0]
+    # BCH.rel_dev -= just
 
-    XRP['rel_dev'] = XRP.Close / XRP.Close.shift(1) - 1
-    XRP.dropna(inplace=True)
-    just = XRP.rel_dev.head(1).values[0]
-    XRP.rel_dev -= just
+    # XRP['rel_dev'] = XRP.Close / XRP.Close.shift(1) - 1
+    # XRP.dropna(inplace=True)
+    # just = XRP.rel_dev.head(1).values[0]
+    # XRP.rel_dev -= just
 
-    ZRX['rel_dev'] = ZRX.Close / ZRX.Close.shift(1) - 1
-    ZRX.dropna(inplace=True)
-    just = ZRX.rel_dev.head(1).values[0]
-    ZRX.rel_dev -= just
+    # ZRX['rel_dev'] = ZRX.Close / ZRX.Close.shift(1) - 1
+    # ZRX.dropna(inplace=True)
+    # just = ZRX.rel_dev.head(1).values[0]
+    # ZRX.rel_dev -= just
 
     last_date = BTC.index[-1].date()
     st.info(f'Until {last_date}')
@@ -295,7 +307,7 @@ if choice == 'Price forecasts':
         st.session_state.df_trends = get_trends_data()
 
     horizons = [2,5,15,30,60,90,250]
-    etra = ['day_of_week', 'day_of_month']  # skippar 'month
+    etra = ['day_of_week', 'day_of_month']  # skippar 'month och stoch_k
     
     
     # day names
@@ -320,8 +332,7 @@ if choice == 'Price forecasts':
     col1.metric("Dagens pris $", str(dagens), latest)
 
     BTC_data1, new_predictors = new_features(BTC, 'Close', 'y1', horizons=horizons,extra=etra)
-    BTC_data1, new_predictors = add_google_trends(
-        BTC_data1, st.session_state.df_trends, 'BTC-USD', new_predictors)
+    BTC_data1, new_predictors = add_google_trends(BTC_data1, st.session_state.df_trends, 'BTC-USD', new_predictors)
     # st.info(f"BTC1 gör predict på {BTC_data1.iloc[-1].name}")
     # st.dataframe(BTC_data1.iloc[-3:][new_predictors])
     tomorrow_up = load_and_predict('BTC_y1.json', BTC_data1, new_predictors)
