@@ -3,15 +3,9 @@ workspace.code-workspace
 desktop.ini
 
 new_krypto/.gitignore at master · carokanns/new_krypto
-precision_full_15_90.csv
-precision_full_15.csv
-precision_no_month_15_90.csv
-precision_full.csv
-precision_no_month_15.csv
-precision_removed.csv
-precision_no_weekday_15.csv
-google_trends.csv
-google_trends.csv
 .vscode
-backtesting_an_example
+backtesting_an_example/*.*
 google_trends.csv
+precision_*.csv
+google_trends.csv
+*.csv
