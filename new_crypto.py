@@ -273,7 +273,7 @@ if choice == 'Graph...':
         paper_bgcolor="LightSteelBlue",
         plot_bgcolor='DarkBlue',
     )
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, use_container_width=True)
     
 # %%
     if 'df_trends' not in st.session_state:
@@ -316,7 +316,7 @@ if choice == 'Graph...':
         paper_bgcolor="LightSteelBlue",
         plot_bgcolor='DarkBlue',
     )
-    st.plotly_chart(fig2)
+    st.plotly_chart(fig2, use_container_width=True)
     
     # fig2, ax2 = plt.subplots()
     # ax2.plot(df_trends.index, df_trends['Bitcoin_goog90'], label='BTC')
