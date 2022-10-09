@@ -296,7 +296,7 @@ if choice == 'Graph...':
     
     fig2.update_xaxes(title_text='Date', title_font_size=20)
     fig2.update_xaxes(range=graph_range)
-    fig2.update_yaxes(title_text='Trafic', title_font_size=20)
+    fig2.update_yaxes(title_text='Traffic', title_font_size=20)
 
     fig2.update_layout(
         autosize=False,
