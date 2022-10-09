@@ -3,10 +3,12 @@ from pytrends.request import TrendReq
 import streamlit as st
 from datetime import datetime as dt
 import datetime
+from datetime import timedelta
 import pandas as pd
 import ta
 import yfinance as yf
 import xgboost as xgb
+import plotly.express as px
 
 tickers = ['BTC-USD', 'ETH-USD', 'BCH-USD', 'ZRX-USD', 'XRP-USD']
 ticker_names = ['Bitcoin', 'Ethereum', 'Bitcoin Cash', '0X', 'Ripple']
@@ -137,9 +139,9 @@ def get_trends_data():
 
 
 
-choice = 'Graph...'
+# choice = 'Price forecasts'
 choice = st.sidebar.radio('what do you want to see',
-                          ('Graph...', 'Price forecasts'), index=0)
+                          ('Graph...', 'Price forecasts'), index=1)
 
 if st.sidebar.button(f'Refresh Data'):
     if 'all_tickers' in st.session_state:
@@ -156,15 +158,20 @@ if 'all_tickers' not in st.session_state:
 all_tickers = st.session_state.all_tickers
 
 if choice == 'Graph...':
+    
+    # make start date at least 31 days before todays date
+    max_date = (dt.today() - timedelta(days=31)).date()
+    
     if 'start_date' not in st.session_state:
         st.session_state.start_date = st.date_input(
-            'Start date', datetime.date(2022, 1, 1))
+            f'Start date', datetime.date(2022, 1, 1), min_value=datetime.date(2014, 9, 17), max_value=max_date)
     else:
         st.session_state.start_date = st.date_input(
-            'Start date', st.session_state.start_date)
+            f'Start date', st.session_state.start_date, min_value=datetime.date(2014, 9, 17), max_value=max_date)
 
     start_date = st.session_state.start_date
-
+    days = (dt.today().date() - start_date).days
+    
     BTC = all_tickers['BTC-USD'].query('index >= @start_date')
     ETH = all_tickers['ETH-USD'].query('index >= @start_date')
     BCH = all_tickers['BCH-USD'].query('index >= @start_date')
@@ -191,52 +198,11 @@ if choice == 'Graph...':
     BCH['rel_dev'] = rel_dev(BCH.Close)
     XRP['rel_dev'] = rel_dev(XRP.Close)
     ZRX['rel_dev'] = rel_dev(ZRX.Close)
-    
 
-    # ETH['rel_dev'] = ETH.Close / ETH.Close.shift(1) - 1
-    # ETH.dropna(inplace=True)
-    # just = ETH.rel_dev.head(1).values[0]
-    # ETH.rel_dev -= just
-
-    # BCH['rel_dev'] = BCH.Close / BCH.Close.shift(1) - 1
-    # BCH.dropna(inplace=True)
-    # just = BCH.rel_dev.head(1).values[0]
-    # BCH.rel_dev -= just
-
-    # XRP['rel_dev'] = XRP.Close / XRP.Close.shift(1) - 1
-    # XRP.dropna(inplace=True)
-    # just = XRP.rel_dev.head(1).values[0]
-    # XRP.rel_dev -= just
-
-    # ZRX['rel_dev'] = ZRX.Close / ZRX.Close.shift(1) - 1
-    # ZRX.dropna(inplace=True)
-    # just = ZRX.rel_dev.head(1).values[0]
-    # ZRX.rel_dev -= just
 
     last_date = BTC.index[-1].date()
     st.info(f'Until {last_date}')
-
-    # fig, ax = plt.subplots()
-    # ax.plot(BTC.index, BTC.rel_dev, label='BTC')
-    # ax.plot(ETH.index, ETH['rel_dev'], label='ETH')
-    # ax.plot(BCH.index, BCH['rel_dev'], label='BCH')
-    # ax.plot(XRP.index, XRP['rel_dev'], label='XRP')
-    # ax.plot(ZRX.index, ZRX['rel_dev'], label='ZRX')
-    # ax.legend()
-
-    # ax.set(ylabel="Price US$",
-    #        title=f'Crypto relative deveolpment starting from 0')
-    # ax.title.set_fontsize(28)
-    # ax.tick_params(axis='both', which='major', labelsize=18)
     
-    # fig.set_size_inches(14, 12)
-    # # set theme
-    # plt.style.use('fivethirtyeight')
-    # st.pyplot(fig)
-    
-    import plotly.express as px
-    # comb = pd.concat([BTC, ETH, BCH, ZRX, XRP], axis=1,)
-    # BTC = BTC.rel_dev.dropna()
     ETH.rel_dev.dropna(inplace=True)
     BCH.rel_dev.dropna(inplace=True)
     XRP.rel_dev.dropna(inplace=True)
@@ -282,17 +248,19 @@ if choice == 'Graph...':
     df_trends = st.session_state.df_trends
 
     
+    rolling_val = 'goog30' if days < 365*3 else 'goog90' # to make the lines more smooth
+    
     df_trends = st.session_state.df_trends.query('index >= @start_date')[
-        ['Bitcoin_goog90', 'Ethereum_goog90', 'Ripple_goog90', 'Bitcoin Cash_goog90', '0X_goog90']]
+        ['Bitcoin_'+rolling_val, 'Ethereum_'+rolling_val, 'Ripple_'+rolling_val, 'Bitcoin Cash_'+rolling_val, '0X_'+rolling_val]]
     df_trends.index = pd.to_datetime(df_trends.index)
     
-    fig2 = px.line(df_trends, x=df_trends.index, y=df_trends['Bitcoin_goog90'], title=f'Crypto Google Trends until {last_date}')
+    fig2 = px.line(df_trends, x=df_trends.index, y=df_trends['Bitcoin_'+rolling_val], title=f'Crypto Google Trends until {last_date}')
 
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin_goog90'], name='BTC')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Ethereum_goog90'], name='ETH')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin Cash_goog90'], name='BCH')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Ripple_goog90'], name='XRP')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['0X_goog90'], name='ZRX')
+    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin_'+rolling_val], name='BTC')
+    fig2.add_scatter(x=df_trends.index, y=df_trends['Ethereum_'+rolling_val], name='ETH')
+    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin Cash_'+rolling_val], name='BCH')
+    fig2.add_scatter(x=df_trends.index, y=df_trends['Ripple_'+rolling_val], name='XRP')
+    fig2.add_scatter(x=df_trends.index, y=df_trends['0X_'+rolling_val], name='ZRX')
     
     fig2.update_xaxes(title_text='Date', title_font_size=20)
     fig2.update_xaxes(range=graph_range)
