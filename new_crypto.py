@@ -258,9 +258,9 @@ if choice == 'Graph...':
     fig.update_layout(
         autosize=False,
         font_color="black",
-        title_text=f"Relative development of crypto currencies starting from 0",
+        title_text=f"Relative development",
         width=900,
-        height=600,
+        height=400,
         font=dict(size=18),
         legend=dict(font=dict(color="black")),
         margin=dict(
@@ -303,7 +303,7 @@ if choice == 'Graph...':
         font_color="black",
         title_text=f"Google Trends",
         width=900,
-        height=600,
+        height=400,
         font=dict(size=18),
         legend=dict(font=dict(color="black")),
         margin=dict(
