@@ -30,17 +30,48 @@ def get_all(tickers):
     return all_tickers
 
 
-def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
+def add_predictors(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
+    
     df = df_.copy()
-    # tidsintervall i dagar för rullande medelvärden
-    # skulle helst ha med upp till 4 år men ETH har för få värden
+    ticker_name = ticker.split('-')[0]
+    # skulle helst ha med rolling upp till 4 år men de har har för få värden
 
-    new_predictors = []
+    predictors = []
     if 'stoch_k' in extra:
         df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10)
-        new_predictors += ['stoch_k']
-        
-    # Target
+        predictors += ['stoch_k']
+    
+    if 'ETH_BTC' in extra:
+        df['ETH_BTC_ratio'] = df['ETH-USD']/df['BTC-USD']
+        predictors += ['ETH_BTC_ratio']
+
+        df['ETH_BTC_lag1'] = df['ETH_BTC_ratio'].shift(1)
+        predictors += ['ETH_BTC_lag1']
+
+        df['ETH_BTC_lag2'] = df['ETH_BTC_ratio'].shift(2)
+        predictors += ['ETH_BTC_lag2']
+
+        if ticker not in ['BTC-USD', 'ETH-USD']:
+            df[ticker_name+'_BTC_ratio'] = df[ticker]/df['BTC-USD']
+            predictors += [ticker_name+'_BTC_ratio']
+
+            df[ticker_name+'_BTC_lag1'] = df[ticker_name+'_BTC_ratio'].shift(1)
+            predictors += [ticker_name+'_BTC_lag1']
+
+            df[ticker_name+'_BTC_lag2'] = df[ticker_name+'_BTC_ratio'].shift(2)
+            predictors += [ticker_name+'_BTC_lag2']
+
+            df[ticker_name+'_ETH_ratio'] = df[ticker]/df['ETH-USD']
+            predictors += [ticker_name+'_ETH_ratio']
+
+            df[ticker_name+'_ETH_lag1'] = df[ticker_name+'_ETH_ratio'].shift(1)
+            predictors += [ticker_name+'_ETH_lag1']
+
+            df[ticker_name+'_ETH_lag2'] = df[ticker_name+'_ETH_ratio'].shift(2)
+            predictors += [ticker_name+'_ETH_lag2']
+
+    
+    #### Target ####
     # tomorrow's close price - alltså nästa dag
     df['Tomorrow'] = df[ticker].shift(-1)
     # after tomorrow's close price - alltså om två dagar
@@ -55,10 +86,6 @@ def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
         ratio_column = f"Close_Ratio_{horizon}"
         df[ratio_column] = df[ticker] / rolling_averages[ticker]
 
-        # edit_column = f"edit_{horizon}"
-        # df[edit_column] = rolling_averages['edit_count']
-        ## Den ovan ändras till min Google Trends och görs på annan plats
-
         rolling = df.rolling(horizon, closed='left', min_periods=1).mean()
 
         trend_column = f"Trend_{horizon}"
@@ -66,20 +93,20 @@ def new_features(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
         # OBS! Skilj trend_column från Google Trends
         df[trend_column] = rolling[target_name]
 
-        new_predictors += [ratio_column, trend_column]
+        predictors += [ratio_column, trend_column]
         
     if 'month' in extra:
         df['month'] = df.index.month
-        new_predictors += ['month']
+        predictors += ['month']
     if 'day_of_month' in extra:
         df['day_of_month'] = df.index.day
-        new_predictors += ['day_of_month']
+        predictors += ['day_of_month']
     if 'day_of_week' in extra:
         df['day_of_week'] = df.index.dayofweek
-        new_predictors += ['day_of_week']  
+        predictors += ['day_of_week']  
     
     # df = df.dropna()
-    return df, new_predictors
+    return df, predictors
 
 
 def latest_is_up(dict):
@@ -285,28 +312,6 @@ if choice == 'Graph...':
         plot_bgcolor='DarkBlue',
     )
     st.plotly_chart(fig2, use_container_width=True)
-    
-    # fig2, ax2 = plt.subplots()
-    # ax2.plot(df_trends.index, df_trends['Bitcoin_goog90'], label='BTC')
-    # ax2.plot(df_trends.index, df_trends['Ethereum_goog90'], label='ETH')
-    # ax2.plot(df_trends.index, df_trends['Bitcoin Cash_goog90'], label='BCH')
-    # ax2.plot(df_trends.index, df_trends['Ripple_goog90'], label='XRP')
-    # ax2.plot(df_trends.index, df_trends['0X_goog90'], label='ZRX')
-
-    # background color
-    # ax2.set_facecolor('darkblue')
-    # ax2.legend()
-    # last_date = df_trends.index[-1].date()
-    # ax2.set(ylabel="Trafic",
-    #         title=f'Crypto Google Trends until {last_date}')
-    # ax2.title.set_fontsize(28)
-    # ax2.tick_params(axis='both', which='major', labelsize=18)
-    
-    # fig2.set_size_inches(14, 12)
-    # # set theme
-    # plt.style.use('fivethirtyeight')
-    # st.pyplot(fig2)
-    # # st.info(df_trends.iloc[-1, :].name)
 
     exp = st.expander('Crypto Förkortningar')
     exp.write("""BTC = Bitcoin   
@@ -327,7 +332,7 @@ def load_and_predict(file, data_, predictors):
     return model.predict(data.iloc[-1:, :][predictors])
 
 
-def add_google_trends(df_, df_trend, ticker, new_predictors):
+def add_google_trends(df_, df_trend, ticker, predictors):
     df = df_.copy()
 
     lookup = {'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum',
@@ -335,13 +340,13 @@ def add_google_trends(df_, df_trend, ticker, new_predictors):
     ticker_namn = lookup[ticker]
 
     df[ticker_namn + '_goog30'] = df_trend[ticker_namn + '_goog30']
-    new_predictors.append(ticker_namn + '_goog30')
+    predictors.append(ticker_namn + '_goog30')
     df[ticker_namn + '_goog90'] = df_trend[ticker_namn + '_goog90']
-    new_predictors.append(ticker_namn + '_goog90')
+    predictors.append(ticker_namn + '_goog90')
     df[ticker_namn + '_goog250'] = df_trend[ticker_namn + '_goog250']
-    new_predictors.append(ticker_namn + '_goog250')
+    predictors.append(ticker_namn + '_goog250')
     # st.dataframe(df)
-    return df, new_predictors
+    return df, predictors
 
 
 if choice == 'Price forecasts':
@@ -349,7 +354,7 @@ if choice == 'Price forecasts':
         st.session_state.df_trends = get_trends_data()
 
     horizons = [2,5,15,30,60,90,250]
-    extra = ['day_of_week', 'day_of_month']  # skippar 'month och stoch_k
+    extra = ['day_of_week', 'day_of_month']  # skippar 'month och stoch_k och alla ETH-BTC-grejor
     
     
     # day names
@@ -368,15 +373,17 @@ if choice == 'Price forecasts':
         dagens = round(ticker_df.iloc[-1].Close ,r)
         latest = latest = "+ " if latest_is_up(ticker_df) else "- "
         col.metric("Aktuellt pris $", str(dagens), latest)
-        ticker_data1, new_predictors = new_features(ticker_df, 'Close', 'y1', horizons=horizons,extra=extra)
-        ticker_data1, new_predictors = add_google_trends(ticker_data1, st.session_state.df_trends, ticker, new_predictors)
+        
+        ticker_data1, predictors = add_predictors(ticker_df, 'Close', 'y1', horizons=horizons,extra=extra)
+        ticker_data1, predictors = add_google_trends(ticker_data1, st.session_state.df_trends, ticker, predictors)
         ticker_short= ticker[:3]
-        tomorrow_up = load_and_predict(ticker_short+'_y1.json', ticker_data1, new_predictors)
+        tomorrow_up = load_and_predict(ticker_short+'_y1.json', ticker_data1, predictors)
         
-        ticker_data2, new_predictors = new_features(ticker_df, 'Close', 'y2', horizons=horizons,extra=extra)
-        ticker_data2, new_predictors = add_google_trends(ticker_data2, st.session_state.df_trends, ticker, new_predictors)
+        ticker_data2, predictors = add_predictors(
+            ticker_df, 'Close', 'y2', horizons=horizons, extra=extra)
+        ticker_data2, predictors = add_google_trends(ticker_data2, st.session_state.df_trends, ticker, predictors)
         
-        two_days_upp = load_and_predict(ticker_short+'_y2.json', ticker_data2, new_predictors)
+        two_days_upp = load_and_predict(ticker_short+'_y2.json', ticker_data2, predictors)
         col.metric(tomorrow, "", "+ " if tomorrow_up[0] else "- ")
         col.metric(day_after, "", "+ " if two_days_upp[0] else "- ")
         
