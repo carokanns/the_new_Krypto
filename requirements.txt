@@ -8,3 +8,4 @@ streamlit==1.13.0
 xgboost==1.6.1
 sklearn
 pandas-ta==0.3.14b0
+plotly==5.3.1
