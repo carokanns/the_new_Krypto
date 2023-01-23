@@ -324,10 +324,12 @@ if choice == 'Graph...':
 
 
 def load_and_predict(file, data_, predictors):
-
+    print('predictors:\n', predictors, len(predictors))
     data = data_.copy()
     model = xgb.XGBClassifier()
     model.load_model(file)
+    predictors_real =model.get_booster().feature_names
+    print('predictors_real:\n', predictors_real, len(predictors_real))
     data = data[predictors].dropna()
     return model.predict(data.iloc[-1:, :][predictors])
 
