@@ -356,7 +356,7 @@ if choice == 'Price forecasts':
         st.session_state.df_trends = get_trends_data()
 
     horizons = [2,5,15,30,60,90,250]
-    extra = ['day_of_week', 'day_of_month']  # skippar 'month och stoch_k och alla ETH-BTC-grejor
+    extra = [] #['day_of_week', 'day_of_month']  # skippar 'month och stoch_k och alla ETH-BTC-grejor
     
     
     # day names
