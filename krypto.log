@@ -1,11 +1,1 @@
-2023-03-26 22:40:00,182 - INFO - 39 - Startar
-2023-03-26 22:40:00,334 - DEBUG - 1003 - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
-2023-03-26 22:40:00,336 - DEBUG - 1003 - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
-2023-03-26 22:40:00,341 - DEBUG - 1003 - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
-2023-03-26 22:40:00,342 - DEBUG - 1003 - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
-2023-03-26 22:40:00,342 - DEBUG - 1003 - Starting new HTTPS connection (1): query2.finance.yahoo.com:443
-2023-03-26 22:40:00,490 - DEBUG - 456 - https://query2.finance.yahoo.com:443 "GET /v8/finance/chart/ETH-USD?period1=-2208994789&period2=1679863200&interval=1d&includePrePost=False&events=div%2Csplits%2CcapitalGains HTTP/1.1" 200 None
-2023-03-26 22:40:00,502 - DEBUG - 456 - https://query2.finance.yahoo.com:443 "GET /v8/finance/chart/XRP-USD?period1=-2208994789&period2=1679863200&interval=1d&includePrePost=False&events=div%2Csplits%2CcapitalGains HTTP/1.1" 200 None
-2023-03-26 22:40:00,507 - DEBUG - 456 - https://query2.finance.yahoo.com:443 "GET /v8/finance/chart/BCH-USD?period1=-2208994789&period2=1679863200&interval=1d&includePrePost=False&events=div%2Csplits%2CcapitalGains HTTP/1.1" 200 None
-2023-03-26 22:40:00,510 - DEBUG - 456 - https://query2.finance.yahoo.com:443 "GET /v8/finance/chart/BTC-USD?period1=-2208994789&period2=1679863200&interval=1d&includePrePost=False&events=div%2Csplits%2CcapitalGains HTTP/1.1" 200 None
-2023-03-26 22:40:00,511 - DEBUG - 456 - https://query2.finance.yahoo.com:443 "GET /v8/finance/chart/ZRX-USD?period1=-2208994789&period2=1679863200&interval=1d&includePrePost=False&events=div%2Csplits%2CcapitalGains HTTP/1.1" 200 None
+2023-03-27 11:19:54,784 - INFO - 39 - Startar
