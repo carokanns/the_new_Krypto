@@ -10,3 +10,7 @@ precision_*.csv
 google_trends.csv
 *.csv
 krypto.log
+catboost_info/*.*
+catboost_info/learn/*
+catboost_info/test/*
+catboost_info/*.json
