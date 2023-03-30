@@ -10,3 +10,4 @@ xgboost==1.6.1
 sklearn==0.0
 pandas-ta==0.3.14b0
 plotly==5.3.1
+ 

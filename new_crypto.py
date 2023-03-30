@@ -185,7 +185,7 @@ if 'all_tickers' not in st.session_state:
 all_tickers = st.session_state.all_tickers
 
 if choice == 'Graph...':
-    
+     
     # make start date at least 31 days before todays date
     max_date = (dt.today() - timedelta(days=31)).date()
     
