@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 from pytrends.request import TrendReq
 import streamlit as st
 from datetime import datetime as dt
@@ -38,7 +37,7 @@ def add_predictors(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
 
     predictors = []
     if 'stoch_k' in extra:
-        df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10)
+        df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10) # type: ignore
         predictors += ['stoch_k']
     
     if 'ETH_BTC' in extra:
@@ -134,36 +133,8 @@ def get_all_dates():
 
 # @st.cache
 
-def get_trends_data():
-    # pytrends = TrendReq(hl='en-US', tz=360)
-
-    df_trend = get_all_dates()
-    for ticker_name in ticker_names:
-        keyword = [ticker_name]
-        pytrend = TrendReq()
-        # pytrend.build_payload(kw_list=keyword)
-
-        pytrend.build_payload(kw_list=keyword, cat=7, timeframe='all')
-        df_temp = pytrend.interest_over_time()
-        df_temp = df_temp.drop(columns=['isPartial'])
-        # df_temp.reset_index(inplace=True)
-        # st.info(keyword)
-        # st.info(f"last date before merge {df_trend.index[-1]}")
-        df_trend = df_trend.merge(
-            df_temp, how='left', left_index=True, right_index=True)
-        # st.info(f"last date after merge {df_trend.index[-1]}")
-        df_trend[ticker_name] = df_trend[ticker_name].fillna(method='ffill')/30
-        df_trend[ticker_name +
-                 '_goog30'] = df_trend[ticker_name].rolling(30, 1).mean()
-        df_trend[ticker_name +
-                 '_goog90'] = df_trend[ticker_name].rolling(90, 1).mean()
-        df_trend[ticker_name +
-                 '_goog250'] = df_trend[ticker_name].rolling(250, 1).mean()
-
-    df_trend = df_trend[ticker_names + [ticker_name+'_goog30' for ticker_name in ticker_names] + [ticker_name +
-                                                                                                  '_goog90' for ticker_name in ticker_names] + [ticker_name+'_goog250' for ticker_name in ticker_names]]
-    return df_trend
-
+def get_inflations_data():
+   return None
 
 
 # choice = 'Price forecasts'
@@ -197,7 +168,7 @@ if choice == 'Graph...':
             f'Start date', st.session_state.start_date, min_value=datetime.date(2014, 9, 17), max_value=max_date)
 
     start_date = st.session_state.start_date
-    days = (dt.today().date() - start_date).days
+    days = (dt.today().date() - start_date).days # type: ignore
     
     BTC = all_tickers['BTC-USD'].query('index >= @start_date')
     ETH = all_tickers['ETH-USD'].query('index >= @start_date')
@@ -268,60 +239,6 @@ if choice == 'Graph...':
     )
     st.plotly_chart(fig, use_container_width=True)
     
-# %%
-    if 'df_trends' not in st.session_state:
-        st.session_state.df_trends = get_trends_data()
-
-    df_trends = st.session_state.df_trends
-
-    
-    rolling_val = 'goog30' if days < 365*3 else 'goog90' # to make the lines more smooth
-    
-    df_trends = st.session_state.df_trends.query('index >= @start_date')[
-        ['Bitcoin_'+rolling_val, 'Ethereum_'+rolling_val, 'Ripple_'+rolling_val, 'Bitcoin Cash_'+rolling_val, '0X_'+rolling_val]]
-    df_trends.index = pd.to_datetime(df_trends.index)
-    
-    fig2 = px.line(df_trends, x=df_trends.index, y=df_trends['Bitcoin_'+rolling_val], title=f'Crypto Google Trends until {last_date}')
-
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin_'+rolling_val], name='BTC')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Ethereum_'+rolling_val], name='ETH')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Bitcoin Cash_'+rolling_val], name='BCH')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['Ripple_'+rolling_val], name='XRP')
-    fig2.add_scatter(x=df_trends.index, y=df_trends['0X_'+rolling_val], name='ZRX')
-    
-    fig2.update_xaxes(title_text='Date', title_font_size=20)
-    fig2.update_xaxes(range=graph_range)
-    fig2.update_yaxes(title_text='Traffic', title_font_size=20)
-
-    fig2.update_layout(
-        autosize=False,
-        font_color="black",
-        title_text=f"Google Trends",
-        width=900,
-        height=400,
-        font=dict(size=18),
-        legend=dict(font=dict(color="black")),
-        margin=dict(
-            l=0,
-            r=50,
-            b=10,
-            t=40,
-            pad=10
-        ),
-        paper_bgcolor="LightSteelBlue",
-        plot_bgcolor='DarkBlue',
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-    exp = st.expander('Crypto Förkortningar')
-    exp.write("""BTC = Bitcoin   
-              ETH = Ethereum   
-              BCH = Bitcoin Cash  
-              XRP = Ripple  
-              ZRX = 0x   
-              """
-              )
-
 
 def load_and_predict(file, data_, predictors):
     print('predictors:\n', predictors, len(predictors))
@@ -329,31 +246,14 @@ def load_and_predict(file, data_, predictors):
     model = xgb.XGBClassifier()
     model.load_model(file)
     predictors_real =model.get_booster().feature_names
-    print('predictors_real:\n', predictors_real, len(predictors_real))
+    print('predictors_real:\n', predictors_real, len(predictors_real)) # type: ignore
     data = data[predictors].dropna()
     return model.predict(data.iloc[-1:, :][predictors])
 
 
-def add_google_trends(df_, df_trend, ticker, predictors):
-    df = df_.copy()
-
-    lookup = {'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum',
-              'BCH-USD': 'Bitcoin Cash', 'XRP-USD': 'Ripple', 'ZRX-USD': '0X'}
-    ticker_namn = lookup[ticker]
-
-    df[ticker_namn + '_goog30'] = df_trend[ticker_namn + '_goog30']
-    predictors.append(ticker_namn + '_goog30')
-    df[ticker_namn + '_goog90'] = df_trend[ticker_namn + '_goog90']
-    predictors.append(ticker_namn + '_goog90')
-    df[ticker_namn + '_goog250'] = df_trend[ticker_namn + '_goog250']
-    predictors.append(ticker_namn + '_goog250')
-    # st.dataframe(df)
-    return df, predictors
-
-
 if choice == 'Price forecasts':
     if 'df_trends' not in st.session_state:
-        st.session_state.df_trends = get_trends_data()
+        st.session_state.df_inflations = get_inflations_data()
 
     horizons = [2,5,15,30,60,90,250]
     extra = [] #['day_of_week', 'day_of_month']  # skippar 'month och stoch_k och alla ETH-BTC-grejor
@@ -370,22 +270,27 @@ if choice == 'Price forecasts':
     st.info(
         f'{last_date}\n- Todays prices in US$ and if it went up or down compared to yesterday\n - Predictions for {tomorrow} and {day_after}')
     
-    def make_predictions(ticker, col, extra, r=1):
+    def make_predictions(ticker, col, extra, modeltype='xgb',r=1):
         ticker_df = all_tickers[ticker]
         dagens = round(ticker_df.iloc[-1].Close ,r)
         latest = latest = "+ " if latest_is_up(ticker_df) else "- "
         col.metric("Aktuellt pris $", str(dagens), latest)
         
         ticker_data1, predictors = add_predictors(ticker_df, 'Close', 'y1', horizons=horizons,extra=extra)
-        ticker_data1, predictors = add_google_trends(ticker_data1, st.session_state.df_trends, ticker, predictors)
+        print('predictors:\n', predictors, len(predictors))
+ 
+        # read the file 'predictors.txt' and store the content as a list of strings
+        with open('predictors.txt', 'r') as file:
+            org_predictors = file.readline().split()
+        print('org_predictors:\n', org_predictors, len(org_predictors))
+        
         ticker_short= ticker[:3]
-        tomorrow_up = load_and_predict(ticker_short+'_y1.json', ticker_data1, predictors)
+        tomorrow_up = load_and_predict(modeltype+'_'+ticker_short+'_y1.json', ticker_data1, predictors)
         
         ticker_data2, predictors = add_predictors(
             ticker_df, 'Close', 'y2', horizons=horizons, extra=extra)
-        ticker_data2, predictors = add_google_trends(ticker_data2, st.session_state.df_trends, ticker, predictors)
-        
-        two_days_upp = load_and_predict(ticker_short+'_y2.json', ticker_data2, predictors)
+        two_days_upp = load_and_predict(
+            modeltype+'_'+ticker_short+'_y2.json', ticker_data2, predictors)
         col.metric(tomorrow, "", "+ " if tomorrow_up[0] else "- ")
         col.metric(day_after, "", "+ " if two_days_upp[0] else "- ")
         
