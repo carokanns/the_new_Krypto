@@ -2,12 +2,10 @@
 # coding: utf-8
 
 
-
 #%% 
 # Komplett omtag av new_crypto.py
 
-# TODO: Lägg till valet av my own crypto och hantera dem precis som ovan
-# TODO: Kopier new_skapa_modeller.ipynb till my_testa_modeller.ipynb
+# TODO: Kopiera new_skapa_modeller.ipynb till my_testa_modeller.ipynb
 # TODO: Skapa 1 (en) modell för prediction av valfri krypto.
 # TODO: Testa olika modelltyper och bestäm vilken som skall användas i my_skapa_modeller.ipynb
 
@@ -85,7 +83,7 @@ def get_inflation_data():
     return inflations
 
 
-st.title('Performance av Kryptovalutor')
+st.title('Performance of Crypto currencies')
 MAX_MONTHS = 24
 
 @st.cache_data
@@ -127,10 +125,12 @@ def get_data():
             print(f"Kunde inte hämta data för {symbol['symbol']}: {e}")
 
         # Update the progress bar
-        progress_text = f"This will take several minutes. Symbol number {idx+1} of {len(symbols)}: . . . . . . . . {symbol['symbol']}"
-        progress_bar.progress((idx + 1) / len(symbols), progress_text)
         if idx+1 == len(symbols):
-            st.snow()
+            progress_text = f"Done! last symbol . . . . . . . . {symbol['symbol']} fetched."
+        else:
+            progress_text = f"This will take several minutes. Symbol number {idx+1} of {len(symbols)}: . . . . . . . . {symbol['symbol']}"
+        progress_bar.progress((idx + 1) / len(symbols), progress_text)
+        
     # Konvertera close_prices-dikten till en pandas DataFrame
     df = pd.DataFrame.from_dict(close_prices, orient='index').transpose()
     # Lägg till datum som index för DataFrame
@@ -142,24 +142,20 @@ def get_data():
 
 df = get_data()
 
-months = int(st.number_input(
-    'Please enter the number of previous months', min_value=1, max_value=MAX_MONTHS, value=12))
-n_examine = int(st.number_input(
-    'Please enter the number of tickers to examine', min_value=1, max_value=25, value=10))
+months = int(st.number_input('Months back to compute returns from', min_value=1, max_value=MAX_MONTHS-1, value=12))
 
 #%%
-
 
 @st.cache_data
 def get_returns(df, months):
     target_date = df.index[-1] - DateOffset(months=months)
-    st.write('Target date is: ', target_date)
-    st.write('Most recent date is: ', df.index[-1])
-    st.write('oldest date is: ', df.index[0])
-    st.write('Number of rows in dataframe: ', len(df))
+    # st.write('Target date is: ', target_date.date())
+    # st.write('Most recent date is: ', df.index[-1])
+    # st.write('oldest date is: ', df.index[0])
+    # st.write('Number of rows in dataframe: ', len(df))
     # Find the index that is closest to the target_date and does not exceed it
     closest_index = df.index[df.index.get_loc(target_date, method='pad')]
-    st.write('Closest date to target date is: ', closest_index)
+    # st.write('Closest date to target date is: ', closest_index)
     old_prices = df.loc[closest_index].squeeze()
 
     recent_prices = df.loc[df.index[-1]]
@@ -170,22 +166,42 @@ def get_returns(df, months):
 
 date, returns_df = get_returns(df, months)
 
-
+n_examine = int(st.sidebar.number_input(
+    'Number of currencies to examine', min_value=1, max_value=25, value=10))
 winners, losers = returns_df.nlargest(n_examine), returns_df.nsmallest(n_examine)
 winners.name,losers.name = 'Best','Worst'
 
-st.table(winners)
-st.table(losers)
+st.title(f'Returns since {date.date()}')
+# make two columns
+col1, col2 = st.columns(2)
+col1.title('Best')
+col1.table(winners)
+bestPick = col1.selectbox('Select one for the graph', winners.index, index=0)
+col2.title('Worst')
+col2.table(losers)
+worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
 
-
-bestPick = st.selectbox('Pick one of the best for graph', winners.index, index=0)
+st.info(f'Graph: {bestPick}')
 st.line_chart(df[bestPick]) # type: ignore
+# st.dataframe(returns_df)
 
-worstPick = st.selectbox('Pick one of the worst for graph', losers.index, index=0)
-st.line_chart(df[worstPick]) # type: ignore
+st.info(f'Graph: {worstPick}')
+st.line_chart(df[worstPick])  # type: ignore
 
-# make a line graph of the inflations
-inflations = get_inflation_data()
-st.line_chart(inflations[['US_inflation','SE_inflation']]) # type: ignore
-    
+if st.sidebar.checkbox('Show my own cryptocurrencies', True):
+    st.title('My own cryptocurrencies')
+    my_own_list = [ 'ETHUSDT', 'BTCUSDT', 'BCHUSDT', 'XRPUSDT','ZRXUSDT',]
+    my_own = returns_df[my_own_list].nlargest(len(my_own_list))
+    my_own.name='My own'
+    st.table(my_own)
+    myPick = st.selectbox('Select one of my own cryptocurrencies for graph', my_own_list, index=0)
+    st.info(f'Graph: {myPick}')
+    st.line_chart(df[myPick])  # type: ignore
+
+if st.sidebar.checkbox('Show inflation data', True):
+    # make a line graph of the inflations
+    inflations = get_inflation_data()
+    st.title("Inflation in US and Sweden")
+    st.line_chart(inflations[['US_inflation', 'SE_inflation']])
+
 
