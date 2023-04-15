@@ -5,8 +5,7 @@
 #%% 
 # Komplett omtag av new_crypto.py
 
-# TODO: Kopiera new_skapa_modeller.ipynb till my_testa_modeller.ipynb
-# TODO: Skapa 1 (en) modell för prediction av valfri krypto.
+# TODO: Skapa 1 (en) modell för prediction av valfri krypto i my_testa_modeller.ipynb.
 # TODO: Testa olika modelltyper och bestäm vilken som skall användas i my_skapa_modeller.ipynb
 
 # TODO: Flera sidor?
