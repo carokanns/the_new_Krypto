@@ -10,6 +10,7 @@
 
 # TODO: Flera sidor?
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
+# TODO: merge into master
 #%%
 
 import pandas as pd
