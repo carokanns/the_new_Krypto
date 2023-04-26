@@ -7,6 +7,10 @@
 
 # TODO: Skapa 1 (en) modell för prediction av valfri krypto i my_testa_modeller.ipynb.
 # TODO: Testa olika modelltyper och bestäm vilken som skall användas i my_skapa_modeller.ipynb
+# TODO: Skapa en StandardScaler för alla kryptovalutor i Binance
+# TODO: Varians (alt max - min) inom varje rad mellan olika horisontvärden
+# TODO: Ta med guld i modellen
+# TODO: Ta bort svensk inflation
 
 # TODO: Flera sidor?
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering

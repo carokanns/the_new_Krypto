@@ -10,8 +10,14 @@ precision_*.csv
 google_trends.csv
 *.csv
 krypto.log
-catboost_info/*.*
+catboost_info/*
 catboost_info/learn/*
 catboost_info/test/*
+catboost_info/tmp/*
 catboost_info/*.json
 predictors.txt
+catboost_info/tmp/cat_feature_index.6bba4f4b-b5aeade5-85d0b481-ff6d78ca.tmp
+catboost_info/learn/events.out.tfevents
+catboost_info/time_left.tsv
+catboost_info/learn_error.tsv
+catboost_info/catboost_training.json

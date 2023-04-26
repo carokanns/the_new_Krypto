@@ -1,1 +1,6 @@
-2023-04-19 15:05:20,092 - INFO - 47 - Startar
+2023-04-25 23:50:04,653 - INFO - 46 - Startar
+2023-04-25 23:50:05,580 - WARNING - 147 - 
+  [33m[1mWarning:[0m to view this Streamlit app on a browser, run it with the following
+  command:
+
+    streamlit run c:\Users\peter\anaconda3\lib\site-packages\ipykernel_launcher.py [ARGUMENTS]
