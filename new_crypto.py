@@ -214,7 +214,6 @@ def get_all_dates():
 
 def get_inflations_data():
    return None
-# TODO: lägg till inflationer i df och predictors
 
 # choice = 'Price forecasts'
 choice = st.sidebar.radio('what do you want to see',
