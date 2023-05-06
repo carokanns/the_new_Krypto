@@ -23,3 +23,6 @@ catboost_info/learn_error.tsv
 catboost_info/catboost_training.json
 catboost_info/catboost_training.json
 krypto.log
+scalers/*
+__pycache__/*
+__pycache__/preprocess.cpython-39.pyc
