@@ -113,16 +113,32 @@ def general_preprocessing(df_,horizons=[2,5,60,250], trend=True):
     
     return df
 
+def preprocessing_currency(df_):
+    df = df_.copy()
+    df = df.drop_duplicates()
+    s=int(0.9*len(df))
+    # remove all columns where there are more than s nan values
+    df = df.dropna(axis=1, thresh=s)
+    print(f'{df.isna().any().sum()} rader med någon nan \n{len(df)-df.isna().any().sum()} rader utan nan')
+    # interpolate missing values
+    df.interpolate(method='linear', inplace=True)
+    print(f'{df.isna().any().sum()} rader med någon nan \n{len(df)-df.isna().any().sum()} rader utan nan')
+    df.shape
+    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date'] = df['Date'].dt.date
+    df = df.set_index('Date')
+    return df
 
 def preprocess(df_, df_gold_, df_infl_):
     df = df_.copy()
+    
     df_gold = df_gold_.copy()
     df_infl = df_infl_.copy()
     
     horizons = [2, 5, 15, 30, 60, 90, 250]
     horizons_infl = [75, 90, 250]
     
-    df = df.drop_duplicates()
+    df = preprocessing_currency(df)
     # spcial preprocessing för crypto currencies
     df = general_preprocessing(df,horizons=horizons)
 
