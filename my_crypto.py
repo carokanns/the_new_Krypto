@@ -4,15 +4,12 @@
 
 #%% 
 # Komplett omtag av new_crypto.py
-
-# TODO: Skapa 1 (en) modell för prediction av valfri krypto i my_testa_modeller.ipynb.
-# TODO: Testa olika modelltyper och bestäm vilken som skall användas i my_skapa_modeller.ipynb
-# TODO: Skapa en StandardScaler för alla kryptovalutor i Binance
-# TODO: Varians (alt max - min) inom varje rad mellan olika horisontvärden
-
+# använd ML-modell från my_test_modeller.ipynb, scalers från my_create_stdScalers.ipynb
 # TODO: Flera sidor?
+
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
-# TODO: merge into master
+# TODO: skapa requrements.txt ta hjälp av ChatGPT
+# TODO: merge gridSearch branchen into master
 #%%
 
 import pandas as pd
