@@ -175,12 +175,14 @@ def main():
     df_infl.index = pd.to_datetime(df_infl.index)
     
     df = preprocessing_currency(df_yf)
-    print('Antal NaN',df.isna().sum().sum())
-    print(df.columns)
-    for col in df.columns:
-        print('testa med', col )
-        preprocess(df_yf[[col]], df_gold, df_infl)
-    
+    if df is not None:
+        print('Antal NaN',df.isna().sum().sum())
+        print(df.columns)
+        for col in df.columns:
+            print('testa med', col )
+            preprocess(df_yf[[col]], df_gold, df_infl)
+    else:
+        print('df is None'*10)
     
 if __name__ == '__main__':
     main()      

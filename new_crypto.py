@@ -93,9 +93,9 @@ def get_inflation_data():
 
 def get_ticker_data(ticker, start="1900-01-01", end=dt.today()):
     data = yf.download(ticker, start=None, end=None)
-    data.reset_index(inplace=True)
-    data.index = pd.to_datetime(data.Date)
-    data = data.drop("Date", axis=1)
+    # data.set_index(inplace=True)
+    # data.index = pd.to_datetime(data.Date)
+    # data = data.drop("Date", axis=1)
 
     return data
 
@@ -231,7 +231,7 @@ if 'all_data' not in st.session_state:
     st.session_state.all_data, st.session_state.df_inflations = get_all_data(tickers)
 
 all_data = st.session_state.all_data
-df = pd.concat([all_data, df_inflations], axis=1)
+df = pd.concat([all_data, df_inflations], axis=1) # type: ignore
 
 if choice == 'Graph...':
      
