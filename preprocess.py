@@ -54,13 +54,21 @@ from binance import AsyncClient, BinanceSocketManager
 #     return df
 
 
-def generate_new_columns(df_, horizons=[2, 5, 60, 250], trend=True):
+def generate_new_columns(df_, horizons=[2, 5, 30, 60, 250], trend=True):
     df = df_.copy()
     ticker = df.columns[0]
 
     target = 'y1'
-    hpref = 'GLD_' if ticker.startswith('GLD') else 'infl_' if 'inflation' in ticker else ''
-
+    
+    if ticker == 'Volume':
+        hpref = 'vol_'
+    elif ticker == 'US_inflation':
+        hpref = 'infl_'
+    elif ticker.startswith('GLD'):
+        hpref = 'GLD_'
+    else:
+        hpref = ''
+        
     for horizon in horizons:
         rolling_averages = df.rolling(horizon, min_periods=1).mean()
 
@@ -88,10 +96,8 @@ def general_preprocessing(df_,horizons=[2,5,15,30,60,90,250], trend=True):
 
 def preprocessing_currency(df_, quiet=False):
     # kontrollera att index är dateindex
-    if type(df_.index[0]) != pd.Timestamp:
-        # break with error
-        print('index är inte dateindex'*10)
-        return df_
+
+    assert type(df_.index[0]) == pd.Timestamp, f'index {type(df_.index[0])} är inte dateindex'
 
     df = df_.copy()
     df = df.drop_duplicates()
@@ -130,18 +136,40 @@ def add_diff(df_, new_col, col_list):
     return df
     
 
-def preprocess(df_, df_gold_, df_infl_):
-    df = df_.copy()
+def preprocess(df_curr_, df_vol_,df_gold_, df_infl_):
+    df_curr = df_curr_.copy()
+    df_vol = df_vol_.copy()
     df_gold = df_gold_.copy()
     df_infl = df_infl_.copy()
     
     horizons = [2, 5, 30, 60, 90, 250]
     horizons_infl = [75, 90, 250]
+    # rename column 1 to Volume
+    df_vol.columns = ['Volume']
     
-    df = preprocessing_currency(df,quiet=True)
+    # print('FÖRST')
+    # print(df_curr.head(3))
+    # print(df_vol.head(3))
+    
+    # special preprocessing för valutor
+    df_curr = preprocessing_currency(df_curr,quiet=True)
     # special preprocessing för crypto currencies
-    df = general_preprocessing(df,horizons=horizons)
+    df_vol = preprocessing_currency(df_vol,quiet=True)
     
+    # print('EFTER PREPROCESSING - df_curr och df_vol')
+    # print(df_curr.head(3))
+    # print(df_vol.head(3))
+   
+    df_curr = general_preprocessing(df_curr,horizons=horizons)
+    # print('EFTER GENERAL_PREPROCESSING - df_curr')
+    # print(df_curr.head(3))
+    df_vol = general_preprocessing(df_vol, trend=False, horizons=horizons)
+    # print('EFTER GENERAL_PREPROCESSING - df_vol')
+    # print(df_vol.head(3))
+    
+    df = df_curr.merge(df_vol, left_index=True, right_index=True, how='left')
+    # print('EFTER MERGE -> df')
+    # print(df.head(3))
     # df = df.set_index('Date')
     
     if df_infl is not None:
@@ -168,8 +196,10 @@ def preprocess(df_, df_gold_, df_infl_):
 
 def main():
     # read in df_yf.csv
-    df_yf = pd.read_csv('df_yf.csv', index_col=0)
-    df_yf.index = pd.to_datetime(df_yf.index)
+    df_curr = pd.read_csv('df_curr.csv', index_col=0)
+    df_curr.index = pd.to_datetime(df_curr.index)
+    df_vol = pd.read_csv('df_volume.csv', index_col=0)
+    df_vol.index = pd.to_datetime(df_vol.index)
     
     df_gold = pd.read_csv('gold.csv', index_col=0)
     df_gold.index = pd.to_datetime(df_gold.index)
@@ -177,15 +207,21 @@ def main():
     df_infl = pd.read_csv('inflation.csv', index_col=0)    
     df_infl.index = pd.to_datetime(df_infl.index)
     
-    df = preprocessing_currency(df_yf)
-    if df is not None:
-        print('Antal NaN',df.isna().sum().sum())
-        print(df.columns)
-        for col in df.columns:
-            print('testa med', col )
-            preprocess(df_yf[[col]], df_gold, df_infl)
+    df_curr = preprocessing_currency(df_curr)
+    df_vol = preprocessing_currency(df_vol)
+    my_cols = None
+    if df_curr is not None and df_vol is not None:
+        print('Antal NaN',df_curr.isna().sum().sum())
+        print('curr',df_curr.columns)
+        print('vol',df_vol.columns)
+        for col in df_curr.columns:
+            print('preprocess', col )
+            df = preprocess(df_curr[[col]], df_vol[[col]],df_gold, df_infl)
+            my_cols = df.columns
     else:
-        print('df is None'*10)
+        print('df_curr or df_vol is None'*10)
+    
+    print(my_cols)  
     
 if __name__ == '__main__':
     main()      
