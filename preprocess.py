@@ -1,5 +1,8 @@
 '''
-Detta är en gemensam preprocessing för att skapa stdScaler, testa olika modeller, samt my_crypto.py
+Detta är en gemensam preprocessing för att 
+  - skapa stdScaler 
+  - testa olika modeller och träna en av dem 
+  - köra my_crypto.py som visar/selekter krypto för valfri tidshorisont samt prognos
 '''
 import asyncio
 import sys

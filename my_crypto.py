@@ -4,12 +4,18 @@
 
 #%% 
 # Komplett omtag av new_crypto.py
-# använd ML-modell från my_test_modeller.ipynb, scalers från my_create_stdScalers.ipynb
-# TODO: Flera sidor?
+# använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
+# TODO: visa de 10 bästa och sämsta kryptovalutorna för valfri tidshorisont
+# TODO: Inkludera prognos för de 10 bästa och sämsta kryptovalutorna
+# TODO: Välj ut graf för någon av de värsta och bästa kryptovalutorna
+
+# TODO: Flera sidor? På andra sidan enbart mina uppställda för prognos
 
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
 # TODO: skapa requrements.txt ta hjälp av ChatGPT
 # TODO: merge gridSearch branchen into master
+#
+# TODO: Skapa ett heöt nytt program med Autogluon och streamlit som gör precis samma sak som detta program
 #%%
 
 import pandas as pd
