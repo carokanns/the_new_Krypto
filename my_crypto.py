@@ -5,17 +5,16 @@
 #%% 
 # Komplett omtag av new_crypto.py
 # använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
-# TODO: visa de 10 bästa och sämsta kryptovalutorna för valfri tidshorisont
-# TODO: Inkludera prognos för de 10 bästa och sämsta kryptovalutorna
-# TODO: Välj ut graf för någon av de värsta och bästa kryptovalutorna
+# TODO: visa de X bästa - hur få scroll i fönstret?
+# TODO: Inkludera prognos för de X bästa och sämsta kryptovalutorna
 
-# TODO: Flera sidor? På andra sidan enbart mina uppställda för prognos
+# TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
 
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
 # TODO: skapa requrements.txt ta hjälp av ChatGPT
 # TODO: merge gridSearch branchen into master
 #
-# TODO: Skapa ett heöt nytt program med Autogluon och streamlit som gör precis samma sak som detta program
+# TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
 #%%
 
 import pandas as pd
@@ -23,11 +22,35 @@ import numpy as np
 import streamlit as st
 from pandas.tseries.offsets import DateOffset
 from binance.client import Client
-import datetime
+import yfinance as yf
+import preprocess as pp
+# import datetime
+from datetime import datetime as dt
 
+@st.cache_data
+def get_gold_data():
+    df_dates = pd.DataFrame(pd.date_range(
+        '1988-12-01', pd.to_datetime('today').date()), columns=['Date'])
+    df_dates.set_index('Date', inplace=True)
+    # Hämta historiska guldprisdata (GLD är ticker-symbolen för SPDR Gold Shares ETF)
+    gld_data = yf.download('GLD', end=dt.today().date(), progress=False)
+    # gld_data.set_index('Date', inplace=True)
+
+    # Behåll endast 'Close' priser och döp om kolumnen till 'GLDUSDT'
+    gld_data = gld_data[['Close']].rename(columns={'Close': 'GLD-USD'})
+
+    df_dates = pd.DataFrame(pd.date_range(start=gld_data.index[0], end=pd.to_datetime(  # type: ignore
+        'today').date(), freq='D'), columns=['Date'])  # type: ignore
+
+    df_dates.set_index('Date', inplace=True)
+    gld_data = df_dates.merge(gld_data, how='left',
+                              left_on='Date', right_index=True)
+    # interpolating missing values
+    gld_data.interpolate(method='linear', inplace=True)
+    return gld_data
+df_gold = get_gold_data()
 
 # ## Inflation
-
 def add_horizon_columns(inflation, horizons):
     for horizon in horizons:
         inflation['US_inflation_'+str(horizon)] = inflation['US_inflation'].rolling(horizon, 1).mean()
@@ -84,15 +107,16 @@ def get_inflation_data():
 
     inflations = pd.concat([US_inflation, SE_inflation], axis=1)
     inflations = inflations.dropna()
-    inflations = add_horizon_columns(inflations, [75, 90, 250])
+    # inflations = add_horizon_columns(inflations, [75, 90, 250])
     return inflations
 
+inflation = get_inflation_data()
 
 st.title('Performance of Crypto currencies')
 MAX_MONTHS = 24
 
 @st.cache_data
-def get_data():
+def get_data():  # från Binance
 
     api_key = '2jxiCQ8OIWmU4PZH4xfwKEY9KYerDkSWzwNCqoaMzj41eJgWBsSqA3VYqkt2wmdX'
     api_secret = 'YY1Qj1t0JZrE4tQdaBBxT8iwl2tbFalWp1FHjyZ9selBb6OnQ0Oj8aVdiXO7YLMz'
@@ -101,8 +125,7 @@ def get_data():
 
     # Hämta handelspar
     symbols = client.get_all_tickers()
-    symbols = [
-        symbol for symbol in symbols if symbol['symbol'].endswith('USDT')]
+    symbols = [symbol for symbol in symbols if symbol['symbol'].endswith('USDT')]
 
     # Sätt upp en tom lista för att lagra close-priser
     close_prices = {}
@@ -122,7 +145,7 @@ def get_data():
                 symbol['symbol'], interval, start_time)
             if dates is None:
                 # Extrahera och konvertera tidsstämplar till datum
-                dates = [datetime.datetime.fromtimestamp(
+                dates = [dt.fromtimestamp(
                     int(kline[0]) / 1000).strftime('%Y-%m-%d') for kline in klines]
             close_prices[symbol['symbol']] = [
                 float(kline[4]) for kline in klines]
@@ -145,20 +168,40 @@ def get_data():
 
     return df
 
-df = get_data()
+# hämta yf_tickers från yfinance
+@st.cache_data
+def get_yf_data(tickers, time_period='2y'):
+    # Hämta historiska data från yfinance
+    # yf_data = yf.download(tickers, start='2019-01-01', end=dt.today().date(), progress=False)
+    yf_data = yf.download(tickers, interval='1d',
+                       period=time_period, group_by='ticker', auto_adjust=True, progress=True)
 
-months = int(st.number_input('Months back to compute returns from', min_value=1, max_value=MAX_MONTHS-1, value=12))
+    df_cur = pd.DataFrame(yf_data.xs('Close', axis=1, level=1)) 
+    df_vol = pd.DataFrame(yf_data.xs('Volume', axis=1, level=1)) 
+   
+    return df_cur, df_vol
+
+
+@st.cache_data
+def read_ticker_names(filenam):
+    with open(filenam, 'r') as f:
+        ticker_names = f.read().splitlines()
+    return ticker_names
+
+filnamn = 'yf_tickers.txt'
+yf_ticker_names = read_ticker_names(filnamn)
+print(f'{len(yf_ticker_names)} yFinance ticker_names inlästa')
+df_curr, df_vol = get_yf_data(yf_ticker_names)
+
 
 #%%
+months = int(st.sidebar.number_input('Return period in months',
+             min_value=1, max_value=MAX_MONTHS-1, value=12))
 
 @st.cache_data
 def get_returns(df, months):
     target_date = df.index[-1] - DateOffset(months=months)
-    # st.write('Target date is: ', target_date.date())
-    # st.write('Most recent date is: ', df.index[-1])
-    # st.write('oldest date is: ', df.index[0])
-    # st.write('Number of rows in dataframe: ', len(df))
-    # Find the index that is closest to the target_date and does not exceed it
+  
     closest_index = df.index[df.index.get_loc(target_date, method='pad')]
     # st.write('Closest date to target date is: ', closest_index)
     old_prices = df.loc[closest_index].squeeze()
@@ -169,10 +212,10 @@ def get_returns(df, months):
     return closest_index, returns_df
 
 
-date, returns_df = get_returns(df, months)
+date, returns_df = get_returns(df_curr, months)
 
 n_examine = int(st.sidebar.number_input(
-    'Number of currencies to examine', min_value=1, max_value=25, value=10))
+    'Number of currencies to examine', min_value=1, max_value=100, value=10))
 winners, losers = returns_df.nlargest(n_examine), returns_df.nsmallest(n_examine)
 winners.name,losers.name = 'Best','Worst'
 
@@ -187,26 +230,37 @@ col2.table(losers)
 worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
 
 st.info(f'Graph: {bestPick}')
-st.line_chart(df[bestPick]) # type: ignore
+st.line_chart(df_curr[bestPick]) # type: ignore
 # st.dataframe(returns_df)
 
 st.info(f'Graph: {worstPick}')
-st.line_chart(df[worstPick])  # type: ignore
-
-if st.sidebar.checkbox('Show my own cryptocurrencies', True):
-    st.title('My own cryptocurrencies')
-    my_own_list = [ 'ETHUSDT', 'BTCUSDT', 'BCHUSDT', 'XRPUSDT','ZRXUSDT',]
-    my_own = returns_df[my_own_list].nlargest(len(my_own_list))
-    my_own.name='My own'
-    st.table(my_own)
-    myPick = st.selectbox('Select one of my own cryptocurrencies for graph', my_own_list, index=0)
-    st.info(f'Graph: {myPick}')
-    st.line_chart(df[myPick])  # type: ignore
+st.line_chart(df_curr[worstPick])  # type: ignore
 
 if st.sidebar.checkbox('Show inflation data', True):
     # make a line graph of the inflations
     inflations = get_inflation_data()
     st.title("Inflation in US and Sweden")
     st.line_chart(inflations[['US_inflation', 'SE_inflation']])
+    
+if st.sidebar.checkbox('Show Gold data', True):
+    # make a line graph of the inflations
+    df_gold = get_gold_data()
+    st.title("Gold price")
+
+    st.line_chart(df_gold, width=800, height=500) 
+    # st.line_chart(df_gold, use_container_width=True)
+
+
+if st.sidebar.checkbox('Show my own cryptocurrencies', True):
+    st.title('My own cryptocurrencies')
+    my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD', ]
+    my_own = returns_df[my_own_list].nlargest(len(my_own_list))
+    my_own.name = 'My own'
+    st.table(my_own)
+    myPick = st.selectbox(
+        'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
+    st.info(f'Graph: {myPick}')
+    st.line_chart(df_curr[myPick])  # type: ignore
+
 
 
