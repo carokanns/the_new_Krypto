@@ -216,13 +216,16 @@ date, returns_df = get_returns(df_curr, months)
 
 n_examine = int(st.sidebar.number_input(
     'Number of currencies to examine', min_value=1, max_value=100, value=10))
-winners, losers = returns_df.nlargest(n_examine), returns_df.nsmallest(n_examine)
-winners.name,losers.name = 'Best','Worst'
-
+winners, losers = pd.DataFrame(returns_df.nlargest(n_examine)), pd.DataFrame( returns_df.nsmallest(n_examine))
+winners.columns,losers.columns = [f'Return {n_examine}months'],[f'Return {n_examine}months']
+df_curr = pp.preprocessing_currency(df_curr)
+df_vol = pp.preprocessing_currency(df_vol)
 st.title(f'Returns since {date.date()}')
 # make two columns
 col1, col2 = st.columns(2)
 col1.title('Best')
+winners['test'] = 'winner test'
+losers['test'] = 'loser test'
 col1.table(winners)
 bestPick = col1.selectbox('Select one for the graph', winners.index, index=0)
 col2.title('Worst')
@@ -254,8 +257,8 @@ if st.sidebar.checkbox('Show Gold data', True):
 if st.sidebar.checkbox('Show my own cryptocurrencies', True):
     st.title('My own cryptocurrencies')
     my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD', ]
-    my_own = returns_df[my_own_list].nlargest(len(my_own_list))
-    my_own.name = 'My own'
+    my_own = pd.DataFrame(returns_df[my_own_list].nlargest(len(my_own_list)))
+    my_own.columns = ['Return']
     st.table(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
