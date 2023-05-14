@@ -5,8 +5,6 @@
 #%% 
 # Komplett omtag av new_crypto.py
 # använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
-# TODO: visa de X bästa - hur få scroll i fönstret?
-# TODO: Inkludera prognos för de X bästa och sämsta kryptovalutorna
 
 # TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
 
@@ -24,7 +22,7 @@ from pandas.tseries.offsets import DateOffset
 from binance.client import Client
 import yfinance as yf
 import preprocess as pp
-# import datetime
+import pickle
 from datetime import datetime as dt
 
 @st.cache_data
@@ -186,13 +184,47 @@ def get_yf_data(tickers, time_period='2y'):
 def read_ticker_names(filenam):
     with open(filenam, 'r') as f:
         ticker_names = f.read().splitlines()
+    print(f'{len(ticker_names)} yFinance ticker_names')
     return ticker_names
 
-filnamn = 'yf_tickers.txt'
-yf_ticker_names = read_ticker_names(filnamn)
-print(f'{len(yf_ticker_names)} yFinance ticker_names inlästa')
-df_curr, df_vol = get_yf_data(yf_ticker_names)
+@st.cache_data
+def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
+    predictors = ['Close','Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90',
+                  'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250',
+                  'Volume', 'vol_Ratio_2', 'vol_Ratio_5', 'vol_Ratio_30', 'vol_Ratio_60', 'vol_Ratio_90', 'vol_Ratio_250',
+                  'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff']
+    
+    df_curr = pp.preprocessing_currency(df_curr_)
+    df_vol = pp.preprocessing_currency(df_vol_)
+    my_model = pickle.load(open("my_model.pkl", "rb"))
+    
+    predictions = pd.DataFrame(columns=['prediction'])
+    predictions.index.name = 'Ticker'
 
+    if df_curr is not None and df_vol is not None:
+        assert df_curr.shape[1] == df_vol.shape[1], 'The number of columns in df_curr and df_vol are not the same'
+        assert df_curr.columns.values.tolist() == df_vol.columns.values.tolist(), 'The columns in df_curr and df_vol are not the same'
+        assert df_curr.isna().any().sum() == 0, 'There are NaN values in df_curr'
+        assert df_vol.isna().any().sum() == 0, 'There are NaN values in df_vol'
+        
+        progress_placeholder = st.empty()  # Create an empty placeholder
+        progress_bar = progress_placeholder.progress(0)  # Create a progress bar in the placeholder
+
+        for cnt, column_name in enumerate(df_curr.columns):
+            df = pp.preprocess(df_curr[[column_name]], df_vol[[column_name]], df_gold, df_infl)
+            # set fist column-name to 'Close'
+            df.columns = ['Close'] + df.columns.tolist()[1:]
+            df = df[predictors]
+            assert len(df.columns) == len(
+                predictors), f'Number of columns in df ({len(df.columns)}) is not the same as in predictors ({len(predictors)})'
+            pred_value = my_model.predict_proba(df[predictors].iloc[-1:])[:,1]
+
+            predictions.loc[column_name] = np.round(pred_value,5)
+            progress_bar.progress((cnt + 1) / len(df_curr.columns), 'Please wait...') 
+                 
+        progress_placeholder.empty()
+        
+    return predictions  # df with one row per kryptovaluta 
 
 #%%
 months = int(st.sidebar.number_input('Return period in months',
@@ -212,29 +244,41 @@ def get_returns(df, months):
     return closest_index, returns_df
 
 
-date, returns_df = get_returns(df_curr, months)
+# get data
+filnamn = 'yf_tickers.txt'
+yf_ticker_names = read_ticker_names(filnamn)
+
+df_curr, df_vol = get_yf_data(yf_ticker_names)
+date, df_returns = get_returns(df_curr, months)
 
 n_examine = int(st.sidebar.number_input(
-    'Number of currencies to examine', min_value=1, max_value=100, value=10))
-winners, losers = pd.DataFrame(returns_df.nlargest(n_examine)), pd.DataFrame( returns_df.nsmallest(n_examine))
-winners.columns,losers.columns = [f'Return {n_examine}months'],[f'Return {n_examine}months']
-df_curr = pp.preprocessing_currency(df_curr)
-df_vol = pp.preprocessing_currency(df_vol)
+    'Number of currencies to show', min_value=1, max_value=100, value=10))
+winners, losers = pd.DataFrame(df_returns.nlargest(n_examine)), pd.DataFrame( df_returns.nsmallest(n_examine))
+winners.columns,losers.columns = [f'Return {months}mo'],[f'Return {months}mo']
+
+print('len predictors', len(['Close', 'Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90', 'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250', 'Volume', 'vol_Ratio_2', 'vol_Ratio_5', 'vol_Ratio_30', 'vol_Ratio_60', 'vol_Ratio_90', 'vol_Ratio_250', 'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff']))
+
+predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
+
+# Ersätt 'up Tomorrow' kolumnen i winners och losers med förutsägelserna
+winners['up Tomorrow'] = predictions.loc[winners.index]
+losers['up Tomorrow'] = predictions.loc[losers.index]
 st.title(f'Returns since {date.date()}')
+
 # make two columns
 col1, col2 = st.columns(2)
 col1.title('Best')
-winners['test'] = 'winner test'
-losers['test'] = 'loser test'
-col1.table(winners)
+winners.index.name = 'Ticker'     
+losers.index.name = 'Ticker'
+
+col1.dataframe(winners)
 bestPick = col1.selectbox('Select one for the graph', winners.index, index=0)
 col2.title('Worst')
-col2.table(losers)
+col2.dataframe(losers)
 worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
 
 st.info(f'Graph: {bestPick}')
 st.line_chart(df_curr[bestPick]) # type: ignore
-# st.dataframe(returns_df)
 
 st.info(f'Graph: {worstPick}')
 st.line_chart(df_curr[worstPick])  # type: ignore
@@ -254,12 +298,19 @@ if st.sidebar.checkbox('Show Gold data', True):
     # st.line_chart(df_gold, use_container_width=True)
 
 
-if st.sidebar.checkbox('Show my own cryptocurrencies', True):
+if st.sidebar.checkbox('Show my own cryptocurrencies', False):
+    # my_model = pickle.load(open("my_model.pkl", "rb"))
+    # print(my_model.classes_)
+
     st.title('My own cryptocurrencies')
     my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD', ]
-    my_own = pd.DataFrame(returns_df[my_own_list].nlargest(len(my_own_list)))
+    my_own = pd.DataFrame(df_returns[my_own_list].nlargest(len(my_own_list)))
     my_own.columns = ['Return']
-    st.table(my_own)
+    
+    my_own['Prob up tomorrow'] = predictions.loc[my_own_list]
+    my_own['Prob up tomorrow'] = my_own['Prob up tomorrow'].round(7)
+
+    st.dataframe(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
     st.info(f'Graph: {myPick}')
