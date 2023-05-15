@@ -1,5 +1,5 @@
-numpy==1.23.5
-pandas==1.4.4
-streamlit==1.14.0
-yfinance==0.2.12
+numpy
+pandas
+streamlit
+yfinance
 pickle-mixin

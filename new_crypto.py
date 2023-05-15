@@ -115,59 +115,6 @@ inflation = get_inflation_data()
 st.title('Performance of Crypto currencies')
 MAX_MONTHS = 24
 
-@st.cache_data
-def get_data():  # från Binance
-
-    api_key = '2jxiCQ8OIWmU4PZH4xfwKEY9KYerDkSWzwNCqoaMzj41eJgWBsSqA3VYqkt2wmdX'
-    api_secret = 'YY1Qj1t0JZrE4tQdaBBxT8iwl2tbFalWp1FHjyZ9selBb6OnQ0Oj8aVdiXO7YLMz'
-
-    client = Client(api_key, api_secret)
-
-    # Hämta handelspar
-    symbols = client.get_all_tickers()
-    symbols = [symbol for symbol in symbols if symbol['symbol'].endswith('USDT')]
-
-    # Sätt upp en tom lista för att lagra close-priser
-    close_prices = {}
-
-    # Ange den tidsram du vill ha för historiska data
-    interval = Client.KLINE_INTERVAL_1DAY
-    start_time = f"{MAX_MONTHS} month ago UTC"
-
-    # Hämta close-priser för alla kryptovalutor
-    dates = None
-
-    progress_bar = st.progress(0)  # Create a progress bar
-
-    for idx, symbol in enumerate(symbols):
-        try:
-            klines = client.get_historical_klines(
-                symbol['symbol'], interval, start_time)
-            if dates is None:
-                # Extrahera och konvertera tidsstämplar till datum
-                dates = [dt.fromtimestamp(
-                    int(kline[0]) / 1000).strftime('%Y-%m-%d') for kline in klines]
-            close_prices[symbol['symbol']] = [
-                float(kline[4]) for kline in klines]
-        except Exception as e:
-            print(f"Kunde inte hämta data för {symbol['symbol']}: {e}")
-
-        # Update the progress bar
-        if idx+1 == len(symbols):
-            progress_text = f"Done! last symbol . . . . . . . . {symbol['symbol']} fetched."
-        else:
-            progress_text = f"This will take several minutes. Symbol number {idx+1} of {len(symbols)}: . . . . . . . . {symbol['symbol']}"
-        progress_bar.progress((idx + 1) / len(symbols), progress_text)
-        
-    # Konvertera close_prices-dikten till en pandas DataFrame
-    df = pd.DataFrame.from_dict(close_prices, orient='index').transpose()
-    # Lägg till datum som index för DataFrame
-    # type: ignore
-    df.index = pd.to_datetime(dates)  # type: ignore
-    print(df.head())
-
-    return df
-
 # hämta yf_tickers från yfinance
 @st.cache_data
 def get_yf_data(tickers, time_period='2y'):
@@ -188,6 +135,7 @@ def read_ticker_names(filenam):
         ticker_names = f.read().splitlines()
     print(f'{len(ticker_names)} yFinance ticker_names')
     return ticker_names
+
 
 @st.cache_data
 def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
@@ -232,18 +180,23 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
 months = int(st.sidebar.number_input('Return period in months',
              min_value=1, max_value=MAX_MONTHS-1, value=12))
 
+
 @st.cache_data
 def get_returns(df, months):
     target_date = df.index[-1] - DateOffset(months=months)
-  
-    closest_index = df.index[df.index.get_loc(target_date, method='pad')]
-    # st.write('Closest date to target date is: ', closest_index)
-    old_prices = df.loc[closest_index].squeeze()
 
+    closest_index_pos = df.index.get_indexer([target_date], method='pad')[0]
+    if closest_index_pos == -1:
+        print("Error: No suitable index found.")
+        return None, None
+    closest_index = df.index[closest_index_pos]
+
+    old_prices = df.loc[closest_index].squeeze()
     recent_prices = df.loc[df.index[-1]]
     returns_df = (recent_prices - old_prices) / old_prices
 
     return closest_index, returns_df
+
 
 
 # get data
@@ -277,10 +230,10 @@ col2.title('Worst')
 col2.dataframe(losers)
 worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
 
-st.info(f'Graph: {bestPick}')
+st.info(f'Full {bestPick}')
 st.line_chart(df_curr[bestPick]) # type: ignore
 
-st.info(f'Graph: {worstPick}')
+st.info(f'Full {worstPick}')
 st.line_chart(df_curr[worstPick])  # type: ignore
 
 if st.sidebar.checkbox('Show inflation data', True):
@@ -313,8 +266,5 @@ if st.sidebar.checkbox('Show my own cryptocurrencies', False):
     st.dataframe(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
-    st.info(f'Graph: {myPick}')
+    st.info(f'Full {myPick}')
     st.line_chart(df_curr[myPick])  # type: ignore
-
-
-
