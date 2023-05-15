@@ -108,7 +108,7 @@ def preprocessing_currency(df_, quiet=False):
     df = df.dropna(axis=1, thresh=s)
     if not quiet:
         print(len(df.columns),
-            f'kolumner med minst {s} rader utan nan efter dropna')
+            f'kolumner, var och en, med {s} eller fler rader utan nan efter dropna')
         print(f'{df.isna().sum().sum()} rader med någon nan \n{len(df)-df.isna().any().sum()} rader utan nan')
     
     # interpolate missing values

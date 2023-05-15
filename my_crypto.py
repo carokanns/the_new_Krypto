@@ -6,6 +6,8 @@
 # Komplett omtag av new_crypto.py
 # använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
 
+# TODO  Publicera en första version 
+
 # TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
 
 # TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
@@ -255,8 +257,6 @@ n_examine = int(st.sidebar.number_input(
     'Number of currencies to show', min_value=1, max_value=100, value=10))
 winners, losers = pd.DataFrame(df_returns.nlargest(n_examine)), pd.DataFrame( df_returns.nsmallest(n_examine))
 winners.columns,losers.columns = [f'Return {months}mo'],[f'Return {months}mo']
-
-print('len predictors', len(['Close', 'Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90', 'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250', 'Volume', 'vol_Ratio_2', 'vol_Ratio_5', 'vol_Ratio_30', 'vol_Ratio_60', 'vol_Ratio_90', 'vol_Ratio_250', 'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff']))
 
 predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
 
