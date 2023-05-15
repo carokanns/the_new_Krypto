@@ -1,69 +1,91 @@
-import streamlit as st
-from datetime import datetime as dt
-import datetime
-from datetime import timedelta
-import numpy as np 
+#!/usr/bin/env python
+# coding: utf-8
+
+
+#%% 
+# Komplett omtag av new_crypto.py
+# använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
+
+# TODO  Publicera en första version 
+
+# TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
+
+# TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
+# TODO: skapa requrements.txt ta hjälp av ChatGPT
+# TODO: merge gridSearch branchen into master
+#
+# TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
+#%%
+
 import pandas as pd
-import ta
+import numpy as np
+import streamlit as st
+from pandas.tseries.offsets import DateOffset
+from binance.client import Client
 import yfinance as yf
-import xgboost as xgb
-from catboost import CatBoostClassifier
-import plotly.express as px
+import preprocess as pp
+import pickle
+from datetime import datetime as dt
 
-tickers = ['BTC-USD', 'ETH-USD', 'BCH-USD', 'ZRX-USD', 'XRP-USD']
-ticker_names = ['Bitcoin', 'Ethereum', 'Bitcoin Cash', '0X', 'Ripple']
+@st.cache_data
+def get_gold_data():
+    df_dates = pd.DataFrame(pd.date_range(
+        '1988-12-01', pd.to_datetime('today').date()), columns=['Date'])
+    df_dates.set_index('Date', inplace=True)
+    # Hämta historiska guldprisdata (GLD är ticker-symbolen för SPDR Gold Shares ETF)
+    gld_data = yf.download('GLD', end=dt.today().date(), progress=False)
+    # gld_data.set_index('Date', inplace=True)
 
+    # Behåll endast 'Close' priser och döp om kolumnen till 'GLDUSDT'
+    gld_data = gld_data[['Close']].rename(columns={'Close': 'GLD-USD'})
 
+    df_dates = pd.DataFrame(pd.date_range(start=gld_data.index[0], end=pd.to_datetime(  # type: ignore
+        'today').date(), freq='D'), columns=['Date'])  # type: ignore
+
+    df_dates.set_index('Date', inplace=True)
+    gld_data = df_dates.merge(gld_data, how='left',
+                              left_on='Date', right_index=True)
+    # interpolating missing values
+    gld_data.interpolate(method='linear', inplace=True)
+    return gld_data
+df_gold = get_gold_data()
+
+# ## Inflation
 def add_horizon_columns(inflation, horizons):
-    # print(horizons)
     for horizon in horizons:
-        # print(horizon)
-        inflation['US_inflation_' +
-                  str(horizon)] = inflation['US_inflation'].rolling(horizon, 1).mean()
-        inflation['SE_inflation_' +
-                  str(horizon)] = inflation['SE_inflation'].rolling(horizon, 1).mean()
-
-        # print(inflation.columns)
+        inflation['US_inflation_'+str(horizon)] = inflation['US_inflation'].rolling(horizon, 1).mean()
+        inflation['SE_inflation_'+str(horizon)] = inflation['SE_inflation'].rolling(horizon, 1).mean()
     return inflation
 
 
 def initiate_data(inflation, df_dates, lang_dict, value_name):
-    # display(inflation)
-    inflation = inflation.melt(
-        id_vars=['Year'], var_name='month', value_name=value_name)
-
-    # use lang_dict to translate month names to numbers
+    inflation = inflation.melt(id_vars=['Year'], var_name='month', value_name=value_name)
     inflation['month'] = inflation['month'].map(lang_dict)
-
-    inflation['date'] = pd.to_datetime(inflation['Year'].astype(
-        str) + '-' + inflation['month'].astype(str))
+    inflation['date'] = pd.to_datetime(inflation['Year'].astype(str) + '-' + inflation['month'].astype(str))
     inflation.set_index('date', inplace=True)
     inflation.drop(['Year', 'month'], axis=1, inplace=True)
-    inflation = df_dates.merge(
-        inflation, how='left', left_on='date', right_index=True)
+    inflation = df_dates.merge(inflation, how='left', left_on='date', right_index=True)
     inflation.set_index('date', inplace=True)
     inflation[value_name] = inflation[value_name].astype(str)
     inflation[value_name] = inflation[value_name].str.replace(',', '.')
-    inflation[value_name] = inflation[value_name].str.replace(
-        chr(8209), chr(45))
+    inflation[value_name] = inflation[value_name].str.replace(chr(8209), chr(45))
     inflation[value_name] = inflation[value_name].astype(float)
     inflation[value_name].interpolate(method='linear', inplace=True)
     return inflation
 
 
-def get_inflation_data():
-    # Explain this function here
+#%%
 
+@st.cache_data
+def get_inflation_data():
     df_dates = pd.DataFrame(pd.date_range(
         '1988-12-01', pd.to_datetime('today').date()), columns=['date'])
 
     US_inflation = pd.read_html(
         'https://www.usinflationcalculator.com/inflation/current-inflation-rates/')
     US_inflation = US_inflation[0]
-    # replace the cell including string starting with "Avail" with the NaN
     US_inflation.replace(to_replace=r'^Avail.*$',
                          value=np.nan, regex=True, inplace=True)
-    # set the first row as the header and drop the first row
     US_inflation.columns = US_inflation.iloc[0]
     US_inflation.drop(US_inflation.index[0], inplace=True)
     US_inflation.drop('Ave', axis=1, inplace=True)
@@ -77,344 +99,222 @@ def get_inflation_data():
                    Jul='7', Aug='8', Sep='9', Okt='10', Nov='11', Dec='12')
     us_dict = dict(Jan='1', Feb='2', Mar='3', Apr='4', May='5', Jun='6',
                    Jul='7', Aug='8', Sep='9', Oct='10', Nov='11', Dec='12')
-    #
-    SE_inflation = initiate_data(
-        SE_inflation, df_dates, se_dict, value_name='SE_inflation')
-    # SE_inflation is in percent, divide by 10 to get decimal
-    SE_inflation['SE_inflation'] = SE_inflation['SE_inflation'] / 10
-    US_inflation = initiate_data(
-        US_inflation, df_dates, us_dict,  value_name='US_inflation')
 
-    # concat and set one column to US_index and the other to SE_index
+    SE_inflation = initiate_data(SE_inflation, df_dates, se_dict, value_name='SE_inflation')
+    SE_inflation['SE_inflation'] = SE_inflation['SE_inflation'] / 10
+
+    US_inflation = initiate_data(US_inflation, df_dates, us_dict, value_name='US_inflation')
+
     inflations = pd.concat([US_inflation, SE_inflation], axis=1)
     inflations = inflations.dropna()
-    inflations = add_horizon_columns(inflations, [75, 90, 250])
+    # inflations = add_horizon_columns(inflations, [75, 90, 250])
     return inflations
 
-def get_ticker_data(ticker, start="1900-01-01", end=dt.today()):
-    data = yf.download(ticker, start=None, end=None)
-    # data.set_index(inplace=True)
-    # data.index = pd.to_datetime(data.Date)
-    # data = data.drop("Date", axis=1)
+inflation = get_inflation_data()
 
-    return data
+st.title('Performance of Crypto currencies')
+MAX_MONTHS = 24
 
+@st.cache_data
+def get_data():  # från Binance
 
-def get_all_data(tickers):
-    all_tickers = {}
-    for enum, ticker in enumerate(tickers):
-        all_tickers[ticker] = get_ticker_data(ticker)
-    df_inflations = get_inflation_data()
+    api_key = '2jxiCQ8OIWmU4PZH4xfwKEY9KYerDkSWzwNCqoaMzj41eJgWBsSqA3VYqkt2wmdX'
+    api_secret = 'YY1Qj1t0JZrE4tQdaBBxT8iwl2tbFalWp1FHjyZ9selBb6OnQ0Oj8aVdiXO7YLMz'
 
-    return all_tickers, df_inflations
+    client = Client(api_key, api_secret)
 
+    # Hämta handelspar
+    symbols = client.get_all_tickers()
+    symbols = [symbol for symbol in symbols if symbol['symbol'].endswith('USDT')]
 
-def add_predictors(df_, ticker, target, horizons=[2, 5, 60, 250], extra=[]):
-    
-    df = df_.copy()
-    ticker_name = ticker.split('-')[0]
-    # skulle helst ha med rolling upp till 4 år men de har har för få värden
+    # Sätt upp en tom lista för att lagra close-priser
+    close_prices = {}
 
-    predictors = []
-    if 'stoch_k' in extra:
-        df['stoch_k'] = ta.momentum.stochrsi_k(df[ticker], window=10) # type: ignore
-        predictors += ['stoch_k']
-    
-    if 'ETH_BTC' in extra:
-        df['ETH_BTC_ratio'] = df['ETH-USD']/df['BTC-USD']
-        predictors += ['ETH_BTC_ratio']
+    # Ange den tidsram du vill ha för historiska data
+    interval = Client.KLINE_INTERVAL_1DAY
+    start_time = f"{MAX_MONTHS} month ago UTC"
 
-        df['ETH_BTC_lag1'] = df['ETH_BTC_ratio'].shift(1)
-        predictors += ['ETH_BTC_lag1']
+    # Hämta close-priser för alla kryptovalutor
+    dates = None
 
-        df['ETH_BTC_lag2'] = df['ETH_BTC_ratio'].shift(2)
-        predictors += ['ETH_BTC_lag2']
+    progress_bar = st.progress(0)  # Create a progress bar
 
-        if ticker not in ['BTC-USD', 'ETH-USD']:
-            df[ticker_name+'_BTC_ratio'] = df[ticker]/df['BTC-USD']
-            predictors += [ticker_name+'_BTC_ratio']
+    for idx, symbol in enumerate(symbols):
+        try:
+            klines = client.get_historical_klines(
+                symbol['symbol'], interval, start_time)
+            if dates is None:
+                # Extrahera och konvertera tidsstämplar till datum
+                dates = [dt.fromtimestamp(
+                    int(kline[0]) / 1000).strftime('%Y-%m-%d') for kline in klines]
+            close_prices[symbol['symbol']] = [
+                float(kline[4]) for kline in klines]
+        except Exception as e:
+            print(f"Kunde inte hämta data för {symbol['symbol']}: {e}")
 
-            df[ticker_name+'_BTC_lag1'] = df[ticker_name+'_BTC_ratio'].shift(1)
-            predictors += [ticker_name+'_BTC_lag1']
-
-            df[ticker_name+'_BTC_lag2'] = df[ticker_name+'_BTC_ratio'].shift(2)
-            predictors += [ticker_name+'_BTC_lag2']
-
-            df[ticker_name+'_ETH_ratio'] = df[ticker]/df['ETH-USD']
-            predictors += [ticker_name+'_ETH_ratio']
-
-            df[ticker_name+'_ETH_lag1'] = df[ticker_name+'_ETH_ratio'].shift(1)
-            predictors += [ticker_name+'_ETH_lag1']
-
-            df[ticker_name+'_ETH_lag2'] = df[ticker_name+'_ETH_ratio'].shift(2)
-            predictors += [ticker_name+'_ETH_lag2']
-
-    
-    #### Target ####
-    # tomorrow's close price - alltså nästa dag
-    df['Tomorrow'] = df[ticker].shift(-1)
-    # after tomorrow's close price - alltså om två dagar
-    df['After_tomorrow'] = df[ticker].shift(-2)
-    df['y1'] = (df['Tomorrow'] > df[ticker]).astype(int)
-    df['y2'] = (df['After_tomorrow'] > df[ticker]).astype(int)
-    # df.dropna(inplace=True)
-
-    for horizon in horizons:
-        rolling_averages = df.rolling(horizon, min_periods=1).mean()
-
-        ratio_column = f"Close_Ratio_{horizon}"
-        df[ratio_column] = df[ticker] / rolling_averages[ticker]
-
-        rolling = df.rolling(horizon, closed='left', min_periods=1).mean()
-
-        trend_column = f"Trend_{horizon}"
-        target_name = 'Tomorrow' if target == 'y1' else 'After_tomorrow'
-        # OBS! Skilj trend_column från Google Trends
-        df[trend_column] = rolling[target_name]
-
-        predictors += [ratio_column, trend_column]
+        # Update the progress bar
+        if idx+1 == len(symbols):
+            progress_text = f"Done! last symbol . . . . . . . . {symbol['symbol']} fetched."
+        else:
+            progress_text = f"This will take several minutes. Symbol number {idx+1} of {len(symbols)}: . . . . . . . . {symbol['symbol']}"
+        progress_bar.progress((idx + 1) / len(symbols), progress_text)
         
-    if 'month' in extra:
-        df['month'] = df.index.month
-        predictors += ['month']
-    if 'day_of_month' in extra:
-        df['day_of_month'] = df.index.day
-        predictors += ['day_of_month']
-    if 'day_of_week' in extra:
-        df['day_of_week'] = df.index.dayofweek
-        predictors += ['day_of_week']  
-    
-    # df = df.dropna()
-    return df, predictors
+    # Konvertera close_prices-dikten till en pandas DataFrame
+    df = pd.DataFrame.from_dict(close_prices, orient='index').transpose()
+    # Lägg till datum som index för DataFrame
+    # type: ignore
+    df.index = pd.to_datetime(dates)  # type: ignore
+    print(df.head())
 
-
-def latest_is_up(dict):
-    yesterday = dict.iloc[-2].Close
-    today = dict.iloc[-1].Close
-
-    return today > yesterday
-
-
-with open('style.css') as f:
-    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-st.title('Crypto Currency Price App')
-
-# fill up a dataframe with all dates from 2015 up to today
-
-def get_all_dates():
-    start_date = dt(2005, 1, 1)
-    end_date = dt.today()
-    dates = pd.date_range(start_date, end_date)
-    df = pd.DataFrame(index=dates)
     return df
 
+# hämta yf_tickers från yfinance
+@st.cache_data
+def get_yf_data(tickers, time_period='2y'):
+    # Hämta historiska data från yfinance
+    # yf_data = yf.download(tickers, start='2019-01-01', end=dt.today().date(), progress=False)
+    yf_data = yf.download(tickers, interval='1d',
+                       period=time_period, group_by='ticker', auto_adjust=True, progress=True)
 
-# @st.cache
-
-def get_inflations_data():
-   return None
-
-# choice = 'Price forecasts'
-choice = st.sidebar.radio('what do you want to see',
-                          ('Graph...', 'Price forecasts'), index=1)
-
-if st.sidebar.button(f'Refresh Data'):
-    if 'all_data' in st.session_state:
-        del st.session_state.all_data
-
-    if 'df_inflations' in st.session_state:
-        del st.session_state.df_inflations
+    df_cur = pd.DataFrame(yf_data.xs('Close', axis=1, level=1)) 
+    df_vol = pd.DataFrame(yf_data.xs('Volume', axis=1, level=1)) 
+   
+    return df_cur, df_vol
 
 
-if 'all_data' not in st.session_state:
-    st.session_state.all_data, st.session_state.df_inflations = get_all_data(tickers)
+@st.cache_data
+def read_ticker_names(filenam):
+    with open(filenam, 'r') as f:
+        ticker_names = f.read().splitlines()
+    print(f'{len(ticker_names)} yFinance ticker_names')
+    return ticker_names
 
-all_data = st.session_state.all_data
-df = pd.concat([all_data, df_inflations], axis=1) # type: ignore
-
-if choice == 'Graph...':
-     
-    # make start date at least 31 days before todays date
-    max_date = (dt.today() - timedelta(days=31)).date()
+@st.cache_data
+def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
+    predictors = ['Close','Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90',
+                  'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250',
+                  'Volume', 'vol_Ratio_2', 'vol_Ratio_5', 'vol_Ratio_30', 'vol_Ratio_60', 'vol_Ratio_90', 'vol_Ratio_250',
+                  'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff']
     
-    if 'start_date' not in st.session_state:
-        st.session_state.start_date = st.date_input(
-            f'Start date', datetime.date(2022, 1, 1), min_value=datetime.date(2014, 9, 17), max_value=max_date)
-    else:
-        st.session_state.start_date = st.date_input(
-            f'Start date', st.session_state.start_date, min_value=datetime.date(2014, 9, 17), max_value=max_date)
-
-    start_date = st.session_state.start_date
-    days = (dt.today().date() - start_date).days # type: ignore
+    df_curr = pp.preprocessing_currency(df_curr_)
+    df_vol = pp.preprocessing_currency(df_vol_)
+    my_model = pickle.load(open("my_model.pkl", "rb"))
     
-    BTC = all_data['BTC-USD'].query('index >= @start_date')
-    ETH = all_data['ETH-USD'].query('index >= @start_date')
-    BCH = all_data['BCH-USD'].query('index >= @start_date')
-    XRP = all_data['XRP-USD'].query('index >= @start_date')
-    ZRX = all_data['ZRX-USD'].query('index >= @start_date')
+    predictions = pd.DataFrame(columns=['prediction'])
+    predictions.index.name = 'Ticker'
 
-    BTC = BTC.rolling(30).mean()
-    ETH = ETH.rolling(30).mean()
-    BCH = BCH.rolling(30).mean()
-    XRP = XRP.rolling(30).mean()
-    ZRX = ZRX.rolling(30).mean()
-
-    # compute relative development
-    def rel_dev(df_ticker_):
-        df_ticker = df_ticker_.copy()
-        df_ticker = df_ticker/df_ticker.shift(1)-1
-        df_ticker = df_ticker.dropna()
-        just = df_ticker.head(1).values[0]
-        df_ticker -= just
-        return df_ticker
-           
-    BTC['rel_dev'] = rel_dev(BTC.Close)
-    ETH['rel_dev'] = rel_dev(ETH.Close)
-    BCH['rel_dev'] = rel_dev(BCH.Close)
-    XRP['rel_dev'] = rel_dev(XRP.Close)
-    ZRX['rel_dev'] = rel_dev(ZRX.Close)
-
-
-    last_date = BTC.index[-1].date()
-    st.info(f'Until {last_date}')
-    
-    ETH.rel_dev.dropna(inplace=True)
-    BCH.rel_dev.dropna(inplace=True)
-    XRP.rel_dev.dropna(inplace=True)
-    ZRX.rel_dev.dropna(inplace=True)
-
-    fig = px.line(BTC, x=BTC.index, y=BTC.rel_dev, title=f'Crypto relative deveolpment starting from 0')
+    if df_curr is not None and df_vol is not None:
+        assert df_curr.shape[1] == df_vol.shape[1], 'The number of columns in df_curr and df_vol are not the same'
+        assert df_curr.columns.values.tolist() == df_vol.columns.values.tolist(), 'The columns in df_curr and df_vol are not the same'
+        assert df_curr.isna().any().sum() == 0, 'There are NaN values in df_curr'
+        assert df_vol.isna().any().sum() == 0, 'There are NaN values in df_vol'
         
-    fig.add_scatter(x=BTC.index, y=BTC.rel_dev, name='BTC')
-    fig.add_scatter(x=ETH.index, y=ETH.rel_dev, name='ETH')
-    fig.add_scatter(x=BCH.index, y=BCH.rel_dev, name='BCH')
-    fig.add_scatter(x=XRP.index, y=XRP.rel_dev, name='XRP')
-    fig.add_scatter(x=ZRX.index, y=ZRX.rel_dev, name='ZRX')
-    
-    fig.update_xaxes(title_text='Date', title_font_size=20)
-    graph_range = [BTC.dropna().index[0], BTC.index[-1]]
-    fig.update_xaxes(range=graph_range)
-    fig.update_yaxes(title_text='Relative development', title_font_size=20)
-    
-    fig.update_layout(
-        autosize=False,
-        font_color="black",
-        title_text=f"Relative development",
-        width=900,
-        height=400,
-        font=dict(size=18),
-        legend=dict(font=dict(color="black")),
-        margin=dict(
-            l=0,
-            r=50,
-            b=10,
-            t=40,
-            pad=10
-        ),
-        paper_bgcolor="LightSteelBlue",
-        plot_bgcolor='DarkBlue',
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    
+        progress_placeholder = st.empty()  # Create an empty placeholder
+        progress_bar = progress_placeholder.progress(0)  # Create a progress bar in the placeholder
 
-def load_xgb_and_predict(file, data_, predictors):
-    print('predictors:\n', predictors, len(predictors))
-    data = data_.copy()
-    model = xgb.XGBClassifier()
-    model.load_model(file)
-    predictors_real =model.get_booster().feature_names
-    print('predictors_real:\n', predictors_real, len(predictors_real)) # type: ignore
-    data = data[predictors].dropna()
-    return model.predict(data.iloc[-1:, :][predictors])
+        for cnt, column_name in enumerate(df_curr.columns):
+            df = pp.preprocess(df_curr[[column_name]], df_vol[[column_name]], df_gold, df_infl)
+            # set fist column-name to 'Close'
+            df.columns = ['Close'] + df.columns.tolist()[1:]
+            df = df[predictors]
+            assert len(df.columns) == len(
+                predictors), f'Number of columns in df ({len(df.columns)}) is not the same as in predictors ({len(predictors)})'
+            pred_value = my_model.predict_proba(df[predictors].iloc[-1:])[:,1]
 
-def load_cat_and_predict(file, data_, predictors):
-    print('predictors:\n', predictors, len(predictors))
-    data = data_.copy()
-    model = CatBoostClassifier()
-
-    model.load_model(file)
-    predictors_real = model.feature_names_
-
-    print('predictors_real:\n', predictors_real, len(predictors_real)) # type: ignore
-    data = data[predictors].dropna()
-    return model.predict(data.iloc[-1:, :][predictors])
-
-
-if choice == 'Price forecasts':
-    if 'df_inflations' not in st.session_state:
-        st.session_state.df_inflations = get_inflations_data()
-
-    horizons = [2,5,15,30,60,90,250]
-    extra = [] #['day_of_week', 'day_of_month']  # skippar 'month och stoch_k och alla ETH-BTC-grejor
-    
-    
-    # day names
-    today = datetime.datetime.today().strftime("%A")
-    tomorrow = (datetime.date.today() +
-                datetime.timedelta(days=1)).strftime("%A")
-    day_after = (datetime.date.today() +
-                 datetime.timedelta(days=2)).strftime("%A")
-    last_date = all_data['BTC-USD'].index[-1].date()
-    
-    st.info(
-        f'{last_date}\n- Todays prices in US$ and if it went up or down compared to yesterday\n - Predictions for {tomorrow} and {day_after}')
-    
-    def make_predictions(ticker, col, extra, modeltype='xgb',r=1):
-        ticker_df = all_data[ticker]
-        dagens = round(ticker_df.iloc[-1].Close ,r)
-        latest = latest = "+ " if latest_is_up(ticker_df) else "- "
-        col.metric("Aktuellt pris $", str(dagens), latest)
+            predictions.loc[column_name] = np.round(pred_value,5)
+            progress_bar.progress((cnt + 1) / len(df_curr.columns), 'Please wait...') 
+                 
+        progress_placeholder.empty()
         
-        ticker_data1, predictors = add_predictors(ticker_df, 'Close', 'y1', horizons=horizons,extra=extra)
-        print('predictors:\n', predictors, len(predictors))
- 
-        # read the file 'predictors.txt' and store the content as a list of strings
-        with open('predictors.txt', 'r') as file:
-            org_predictors = file.readline().split()
-        print('org_predictors:\n', org_predictors, len(org_predictors))
-        
-        ticker_short= ticker[:3]
-        
-        if modeltype == 'xgb':
-            tomorrow_up = load_xgb_and_predict('xgb_'+ticker_short+'_y1.json', ticker_data1, predictors)
-        elif modeltype == 'cat':
-            tomorrow_up = load_cat_and_predict('cat_'+ticker_short+'_y1.json', ticker_data1, predictors)
-        else:
-            raise ValueError('modeltype must be xgb or lgbm')
-        ticker_data2, predictors = add_predictors(
-            ticker_df, 'Close', 'y2', horizons=horizons, extra=extra)
-        two_days_upp = load_xgb_and_predict('xgb_'+ticker_short+'_y2.json', ticker_data2, predictors)
-        col.metric(tomorrow, "", "+ " if tomorrow_up[0] else "- ")
-        col.metric(day_after, "", "+ " if two_days_upp[0] else "- ")
-        
-        
-    col1, col2, col3 = st.columns(3)
+    return predictions  # df with one row per kryptovaluta 
 
-    col1.markdown('## Bitcoin')
-    make_predictions('BTC-USD', col1, extra)
-    
-    col2.markdown('## Ether')
-    make_predictions('ETH-USD', col2, extra)
-    
-    col3.markdown('## BCH')
-    make_predictions('BCH-USD', col3, extra, r=2)
-    
-    col4, col5, col6 = st.columns(3)
-    
-    col4.markdown('## 0x')
-    make_predictions('ZRX-USD', col4, extra, r=3)
-    
-    col5.markdown('## Ripple')
-    make_predictions('XRP-USD', col5, extra, r=3)
+#%%
+months = int(st.sidebar.number_input('Return period in months',
+             min_value=1, max_value=MAX_MONTHS-1, value=12))
 
-    col6.markdown(""" """)
+@st.cache_data
+def get_returns(df, months):
+    target_date = df.index[-1] - DateOffset(months=months)
+  
+    closest_index = df.index[df.index.get_loc(target_date, method='pad')]
+    # st.write('Closest date to target date is: ', closest_index)
+    old_prices = df.loc[closest_index].squeeze()
 
-    exp = st.expander('Crypto Förkortningar')
-    exp.write("""BTC = Bitcoin   
-              ETH = Ethereum   
-              BCH = Bitcoin Cash  
-              XRP = Ripple  
-              ZRX = 0x   
-              """
-              )
+    recent_prices = df.loc[df.index[-1]]
+    returns_df = (recent_prices - old_prices) / old_prices
+
+    return closest_index, returns_df
+
+
+# get data
+filnamn = 'yf_tickers.txt'
+yf_ticker_names = read_ticker_names(filnamn)
+
+df_curr, df_vol = get_yf_data(yf_ticker_names)
+date, df_returns = get_returns(df_curr, months)
+
+n_examine = int(st.sidebar.number_input(
+    'Number of currencies to show', min_value=1, max_value=100, value=10))
+winners, losers = pd.DataFrame(df_returns.nlargest(n_examine)), pd.DataFrame( df_returns.nsmallest(n_examine))
+winners.columns,losers.columns = [f'Return {months}mo'],[f'Return {months}mo']
+
+predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
+
+# Ersätt 'up Tomorrow' kolumnen i winners och losers med förutsägelserna
+winners['up Tomorrow'] = predictions.loc[winners.index]
+losers['up Tomorrow'] = predictions.loc[losers.index]
+st.title(f'Returns since {date.date()}')
+
+# make two columns
+col1, col2 = st.columns(2)
+col1.title('Best')
+winners.index.name = 'Ticker'     
+losers.index.name = 'Ticker'
+
+col1.dataframe(winners)
+bestPick = col1.selectbox('Select one for the graph', winners.index, index=0)
+col2.title('Worst')
+col2.dataframe(losers)
+worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
+
+st.info(f'Graph: {bestPick}')
+st.line_chart(df_curr[bestPick]) # type: ignore
+
+st.info(f'Graph: {worstPick}')
+st.line_chart(df_curr[worstPick])  # type: ignore
+
+if st.sidebar.checkbox('Show inflation data', True):
+    # make a line graph of the inflations
+    inflations = get_inflation_data()
+    st.title("Inflation in US and Sweden")
+    st.line_chart(inflations[['US_inflation', 'SE_inflation']])
+    
+if st.sidebar.checkbox('Show Gold data', True):
+    # make a line graph of the inflations
+    df_gold = get_gold_data()
+    st.title("Gold price")
+
+    st.line_chart(df_gold, width=800, height=500) 
+    # st.line_chart(df_gold, use_container_width=True)
+
+
+if st.sidebar.checkbox('Show my own cryptocurrencies', False):
+    # my_model = pickle.load(open("my_model.pkl", "rb"))
+    # print(my_model.classes_)
+
+    st.title('My own cryptocurrencies')
+    my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD', ]
+    my_own = pd.DataFrame(df_returns[my_own_list].nlargest(len(my_own_list)))
+    my_own.columns = ['Return']
+    
+    my_own['Prob up tomorrow'] = predictions.loc[my_own_list]
+    my_own['Prob up tomorrow'] = my_own['Prob up tomorrow'].round(7)
+
+    st.dataframe(my_own)
+    myPick = st.selectbox(
+        'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
+    st.info(f'Graph: {myPick}')
+    st.line_chart(df_curr[myPick])  # type: ignore
+
+
+

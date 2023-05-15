@@ -1,7 +1,13 @@
-# the new Krypto
-This app is made by using Python, Binance and streamlit.
-The app has two different main functions:
-    - make a history graph on crypto currency and inflation history
-    - make a prognosis about next day and the day after 
-    
-- [![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/carokanns/new_krypto/new_crypto_app.py)
+# A Cryptocurrency Analysis Tool
+A cryptocurrency analysis application that leverages Python, yfinance (or alternatively, Binance), and Streamlit to provide insights into the performance of cryptocurrencies.
+
+The application boasts of four functionalities:
+
+**Crypto Discovery**: Seamlessly discover "all" cryptocurrencies listed in yfinance.  
+**Performance Tables**: Curate two interactive tables on Streamlit showcasing the top 'n' best and worst performing cryptocurrencies over the past 'm' months.  
+**Predictive Analysis**: the probability of whether a cryptocurrency's value will increase or decrease the next day.  
+**My Portfolio**: A dedicated optional section for my own cryptocurrencies.  
+ 
+Get started by clicking on the Streamlit badge below.  
+  
+[![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/carokanns/new_krypto/new_crypto_app.py)

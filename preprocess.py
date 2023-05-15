@@ -4,13 +4,7 @@ Detta är en gemensam preprocessing för att
   - testa olika modeller och träna en av dem 
   - köra my_crypto.py som visar/selekter krypto för valfri tidshorisont samt prognos
 '''
-import asyncio
-import sys
-
-import aiohttp
-import numpy as np
 import pandas as pd
-from binance import AsyncClient, BinanceSocketManager
 
 # def create_new_columns(df_, ticker, target, trend:bool=True, horizons=[2,5,60,250]):
     
