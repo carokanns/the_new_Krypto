@@ -4,3 +4,4 @@ streamlit
 yfinance
 pickle-mixin
 scikit-learn
+xgboost

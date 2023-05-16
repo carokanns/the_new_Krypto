@@ -155,6 +155,10 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     # check if m_model exists
     if not os.path.isfile("my_model.pkl"):
         assert False, 'my_model.pkl does not exist'
+    import xgboost
+    import sklearn
+    print(f'xgboost version: {xgboost.__version__}')
+    print(f'sklearn version: {sklearn.__version__}')    
     my_model = pickle.load(open("my_model.pkl", "rb"))
     
     predictions = pd.DataFrame(columns=['prediction'])
