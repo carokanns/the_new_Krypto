@@ -139,7 +139,7 @@ def read_ticker_names(filenam):
     return ticker_names
 
 
-@st.cache_resource
+# @st.cache_resource
 def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     predictors = ['Close','Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90',
                   'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250',
