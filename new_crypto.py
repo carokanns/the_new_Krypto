@@ -19,15 +19,19 @@
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
 #%%
 
-import pandas as pd
-import numpy as np
-import streamlit as st
-from pandas.tseries.offsets import DateOffset
-# from binance.client import Client
-import yfinance as yf
-import preprocess as pp
+import os
 import pickle
 from datetime import datetime as dt
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+# from binance.client import Client
+import yfinance as yf
+from pandas.tseries.offsets import DateOffset
+
+import preprocess as pp
+
 
 @st.cache_data
 def get_gold_data():
@@ -139,7 +143,7 @@ def read_ticker_names(filenam):
     return ticker_names
 
 
-# @st.cache_resource
+@st.cache_resource
 def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     predictors = ['Close','Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90',
                   'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250',
@@ -148,6 +152,9 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     
     df_curr = pp.preprocessing_currency(df_curr_)
     df_vol = pp.preprocessing_currency(df_vol_)
+    # check if m_model exists
+    if not os.path.isfile("my_model.pkl"):
+        assert False, 'my_model.pkl does not exist'
     my_model = pickle.load(open("my_model.pkl", "rb"))
     
     predictions = pd.DataFrame(columns=['prediction'])

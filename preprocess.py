@@ -95,22 +95,13 @@ def preprocessing_currency(df_, quiet=False):
 
     df = df_.copy()
     df = df.drop_duplicates()
-    if not quiet:
-        print(len(df.columns), 'kolumner totalt')
+    
     s = int(0.9*len(df))
     # remove all columns where there are more than s nan values
     df = df.dropna(axis=1, thresh=s)
-    if not quiet:
-        print(len(df.columns),
-            f'kolumner, var och en, med {s} eller fler rader utan nan efter dropna')
-        print(f'{df.isna().sum().sum()} rader med någon nan \n{len(df)-df.isna().any().sum()} rader utan nan')
     
     # interpolate missing values
     df = df.interpolate(method='linear',limit_direction='both', axis=0)
-    
-    if not quiet:
-        print(f'Efter interpollate: {df.isna().any().sum()} rader med någon nan \n{len(df)-df.isna().any().sum()} rader utan nan')
-        print(df.shape)
 
     return df
 
@@ -205,17 +196,17 @@ def main():
     df_vol = preprocessing_currency(df_vol)
     my_cols = None
     if df_curr is not None and df_vol is not None:
-        print('Antal NaN',df_curr.isna().sum().sum())
-        print('curr',df_curr.columns)
-        print('vol',df_vol.columns)
+        # print('Antal NaN',df_curr.isna().sum().sum())
+        # print('curr',df_curr.columns)
+        # print('vol',df_vol.columns)
         for col in df_curr.columns:
-            print('preprocess', col )
+            # print('preprocess', col )
             df = preprocess(df_curr[[col]], df_vol[[col]],df_gold, df_infl)
             my_cols = df.columns
     else:
         print('df_curr or df_vol is None'*10)
     
-    print(my_cols)  
+    # print(my_cols)  
     
 if __name__ == '__main__':
     main()      
