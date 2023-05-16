@@ -6,6 +6,8 @@
 # Komplett omtag av new_crypto.py
 # använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
 
+# TODO: Kör om StandardScaler
+# TODO: Kör om skapa XGBoost modell 
 # TODO  Publicera en första version 
 
 # TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
@@ -21,7 +23,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from pandas.tseries.offsets import DateOffset
-from binance.client import Client
+# from binance.client import Client
 import yfinance as yf
 import preprocess as pp
 import pickle
@@ -268,3 +270,4 @@ if st.sidebar.checkbox('Show my own cryptocurrencies', False):
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
     st.info(f'Full {myPick}')
     st.line_chart(df_curr[myPick])  # type: ignore
+
