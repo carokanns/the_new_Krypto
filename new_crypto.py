@@ -3,6 +3,7 @@
 
 
 #%% 
+# TODO: Fixa progress_bar även för get_data med yfinance
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
 
 #%%

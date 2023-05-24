@@ -5,3 +5,4 @@ yfinance
 pickle-mixin
 scikit-learn
 xgboost
+catboost
