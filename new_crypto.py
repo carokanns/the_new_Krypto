@@ -144,10 +144,9 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     
     if not os.path.isfile("my_model.pkl"):
         assert False, 'my_model.pkl does not exist'
+    import catboost
     import sklearn
-
-    # import xgboost
-    # print(f'xgboost version: {xgboost.__version__}')
+    print(f'catboost version: {catboost.__version__}')
     print(f'sklearn version: {sklearn.__version__}')    
     my_model = pickle.load(open("my_model.pkl", "rb"))
     
