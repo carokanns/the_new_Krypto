@@ -5,8 +5,8 @@
 #%% 
 
 # TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
-# TODO: Byt ut winners o losers df mot en enda df och inkludera kursen samt om den gick upp eller ner
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
+
 #%%
 
 import os
