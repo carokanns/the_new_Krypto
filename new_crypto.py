@@ -6,9 +6,18 @@
 # Komplett omtag av new_crypto.py
 # använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
 
+# TODO: Kör om StandardScaler
+# TODO: Kör om skapa XGBoost modell 
+# TODO  Publicera en första version 
+
 # TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
-# TODO: Använd en gemensam dataframe - no winning/losers.Inkludera gårdagens kurs samt om den gick upp eller ner
+
+# TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
+# TODO: skapa requrements.txt ta hjälp av ChatGPT
+# TODO: merge gridSearch branchen into master
+#
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
+
 #%%
 
 import os
@@ -140,16 +149,17 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
     predictors = ['Close','Ratio_2', 'Trend_2', 'Ratio_5', 'Trend_5', 'Ratio_30', 'Trend_30', 'Ratio_60', 'Trend_60', 'Ratio_90', 'Trend_90',
                   'Ratio_250', 'Trend_250', 'GLD-USD', 'GLD_Ratio_2', 'GLD_Ratio_5', 'GLD_Ratio_30', 'GLD_Ratio_60', 'GLD_Ratio_90', 'GLD_Ratio_250',
                   'Volume', 'vol_Ratio_2', 'vol_Ratio_5', 'vol_Ratio_30', 'vol_Ratio_60', 'vol_Ratio_90', 'vol_Ratio_250',
-                  'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff']
+                  'US_inflation', 'infl_Ratio_75', 'infl_Ratio_90', 'infl_Ratio_250', 'diff', 'before_kvot','before_up']
     
     df_curr = pp.preprocessing_currency(df_curr_)
     df_vol = pp.preprocessing_currency(df_vol_)
-    # check if m_model exists
+    
     if not os.path.isfile("my_model.pkl"):
         assert False, 'my_model.pkl does not exist'
-    import xgboost
     import sklearn
-    print(f'xgboost version: {xgboost.__version__}')
+
+    # import xgboost
+    # print(f'xgboost version: {xgboost.__version__}')
     print(f'sklearn version: {sklearn.__version__}')    
     my_model = pickle.load(open("my_model.pkl", "rb"))
     
@@ -167,14 +177,15 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
 
         for cnt, column_name in enumerate(df_curr.columns):
             df = pp.preprocess(df_curr[[column_name]], df_vol[[column_name]], df_gold, df_infl)
+            assert not np.isinf(df).any().any(), f'hittade inf i {column_name}'
+            
             # set fist column-name to 'Close'
             df.columns = ['Close'] + df.columns.tolist()[1:]
             df = df[predictors]
-            assert len(df.columns) == len(
-                predictors), f'Number of columns in df ({len(df.columns)}) is not the same as in predictors ({len(predictors)})'
+            assert len(df.columns) == len(predictors), f'Number of columns in df ({len(df.columns)}) is not the same as in predictors ({len(predictors)})'
             pred_value = my_model.predict_proba(df[predictors].iloc[-1:])[:,1]
 
-            predictions.loc[column_name] = np.round(pred_value,5)
+            predictions.loc[column_name] = np.round(pred_value,9)
             progress_bar.progress((cnt + 1) / len(df_curr.columns), 'Please wait...') 
                  
         progress_placeholder.empty()
@@ -192,54 +203,48 @@ def get_returns(df, months):
 
     closest_index_pos = df.index.get_indexer([target_date], method='pad')[0]
     if closest_index_pos == -1:
-        print("Error: No suitable index found.")
+        print("Error: No suitable close index found.")
         return None, None
     closest_index = df.index[closest_index_pos]
 
     old_prices = df.loc[closest_index].squeeze()
     recent_prices = df.loc[df.index[-1]]
-    returns_df = (recent_prices - old_prices) / old_prices
+    returns_df = pd.DataFrame()
+    returns_df['Close'] = recent_prices
+    returns_df['Returns'] = pd.DataFrame((recent_prices - old_prices) / old_prices)
 
     return closest_index, returns_df
-
-
 
 # get data
 filnamn = 'yf_tickers.txt'
 yf_ticker_names = read_ticker_names(filnamn)
 
 df_curr, df_vol = get_yf_data(yf_ticker_names)
-date, df_returns = get_returns(df_curr, months)
+date, df = get_returns(df_curr, months)
 
-n_examine = int(st.sidebar.number_input(
-    'Number of currencies to show', min_value=1, max_value=100, value=10))
-winners, losers = pd.DataFrame(df_returns.nlargest(n_examine)), pd.DataFrame( df_returns.nsmallest(n_examine))
-winners.columns,losers.columns = [f'Return {months}mo'],[f'Return {months}mo']
+# n_examine = int(st.sidebar.number_input('Number of currencies to show', min_value=1, max_value=100, value=10))
+# df = pd.DataFrame(df_returns)
+
+# df.columns = [f'Return {months}mo']
 
 predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
 
 # Ersätt 'up Tomorrow' kolumnen i winners och losers med förutsägelserna
-winners['up Tomorrow'] = predictions.loc[winners.index]
-losers['up Tomorrow'] = predictions.loc[losers.index]
+df['up Tomorrow'] = predictions.loc[df.index]
 st.title(f'Returns since {date.date()}')
 
-# make two columns
-col1, col2 = st.columns(2)
-col1.title('Best')
-winners.index.name = 'Ticker'     
-losers.index.name = 'Ticker'
+st.title('Predictions')
+df.index.name = 'Ticker'     
 
-col1.dataframe(winners)
-bestPick = col1.selectbox('Select one for the graph', winners.index, index=0)
-col2.title('Worst')
-col2.dataframe(losers)
-worstPick = col2.selectbox('Select one for the graph', losers.index, index=0)
+df_view = df.sort_values(by='Returns', ascending=False)
+df_view['Close'] = df_view['Close'].map('{:,.6f}'.format)
+# rename columns
+df_view.columns = ['Close-price today', f'Return {months}mo', 'Prob. price up tomorrow']
+st.dataframe(df_view)
+bestPick = st.selectbox('Select one for the graph', df.index, index=0)
 
 st.info(f'Full {bestPick}')
 st.line_chart(df_curr[bestPick]) # type: ignore
-
-st.info(f'Full {worstPick}')
-st.line_chart(df_curr[worstPick])  # type: ignore
 
 if st.sidebar.checkbox('Show inflation data', True):
     # make a line graph of the inflations
@@ -261,13 +266,13 @@ if st.sidebar.checkbox('Show my own cryptocurrencies', False):
     # print(my_model.classes_)
 
     st.title('My own cryptocurrencies')
-    my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD', ]
-    my_own = pd.DataFrame(df_returns[my_own_list].nlargest(len(my_own_list)))
-    my_own.columns = ['Return']
+    my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD' ]
     
-    my_own['Prob up tomorrow'] = predictions.loc[my_own_list]
-    my_own['Prob up tomorrow'] = my_own['Prob up tomorrow'].round(7)
-
+    my_own = df.loc[my_own_list]
+    
+    my_own.columns = ['Close-price today',
+                       f'Return {months}mo', 'Prob. price up tomorrow']
+    
     st.dataframe(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)

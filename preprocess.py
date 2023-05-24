@@ -4,48 +4,8 @@ Detta är en gemensam preprocessing för att
   - testa olika modeller och träna en av dem 
   - köra my_crypto.py som visar/selekter krypto för valfri tidshorisont samt prognos
 '''
+import numpy as np
 import pandas as pd
-
-# def create_new_columns(df_, ticker, target, trend:bool=True, horizons=[2,5,60,250]):
-    
-#     '''
-#     Creates predictors for a given ticker.
-    
-#         df_ is the dataframe with tickers.
-#         ticker is the ticker to create predictors for.
-#         target is the target column to create predictors for. : 'y1' or 'y2'
-#         trend is a boolean to create Trend columns for the target or not.
-#         horizons is the list of horizons to create predictors for.
-#         Returns a new dataframe
-#     '''
-#     df = df_.copy()
-    
-#     # Move these lines outside the loop
-#     df['Tomorrow'] = df[ticker].shift(-1)
-#     df['After_tomorrow'] = df[ticker].shift(-2)
-#     df['y1'] = (df['Tomorrow'] > df[ticker]).astype(int)
-#     df['y2'] = (df['After_tomorrow'] > df[ticker]).astype(int)
-    
-#     hpref = 'GLD_' if 'GLD' in ticker else 'infl_' if 'inflation' in ticker else ''
-#     for horizon in horizons:
-#         rolling_averages = df.rolling(horizon, min_periods=1).mean()
-
-#         ratio_column = f"{hpref}Ratio_{horizon}"
-#         df[ratio_column] = df[ticker] / rolling_averages[ticker]
-        
-#         rolling = df.rolling(horizon,closed='left', min_periods=1).mean()
-#         print('innan trend',df.shape)
-#         if trend:
-#             trend_column = f"{hpref}Trend_{horizon}"
-#             target_name = 'Tomorrow' if target=='y1' else 'After_tomorrow'
-#             print('target_name =' , target_name)
-#             print('trend_column =' , trend_column)
-#             print("len df.columns", len(df.columns))
-#             print('innan rolling',df.shape)
-#             df[trend_column] = rolling[target_name]  
-#             print('efter rolling',df.shape)
-
-#     return df
 
 
 def generate_new_columns(df_, horizons=[2, 5, 30, 60, 250], trend=True):
@@ -78,13 +38,6 @@ def generate_new_columns(df_, horizons=[2, 5, 30, 60, 250], trend=True):
             df[trend_column] = rolling[target_name]
 
     df = df.drop(['Tomorrow'], axis=1)
-    return df
-
-def general_preprocessing(df_,horizons=[2,5,15,30,60,90,250], trend=True):
-
-    df = generate_new_columns(df_, horizons=horizons, trend=trend)
-    # df = df.reset_index()   
-    
     return df
 
 
@@ -120,6 +73,13 @@ def add_diff(df_, new_col, col_list):
     
     return df
     
+def add_last_day(df_):
+    df = df_.copy()
+    df['before_kvot'] = np.where(df.iloc[:,0].shift(1) == 0, 0, df.iloc[:,0]/df.iloc[:,0].shift(1))
+    
+    df['before_up'] = df['before_kvot'] > 1
+    return df
+        
 
 def preprocess(df_curr_, df_vol_,df_gold_, df_infl_):
     df_curr = df_curr_.copy()
@@ -145,11 +105,11 @@ def preprocess(df_curr_, df_vol_,df_gold_, df_infl_):
     # print(df_curr.head(3))
     # print(df_vol.head(3))
    
-    df_curr = general_preprocessing(df_curr,horizons=horizons)
-    # print('EFTER GENERAL_PREPROCESSING - df_curr')
+    df_curr = generate_new_columns(df_curr,horizons=horizons)
+    # print('EFTER generate_new_columns - df_curr')
     # print(df_curr.head(3))
-    df_vol = general_preprocessing(df_vol, trend=False, horizons=horizons)
-    # print('EFTER GENERAL_PREPROCESSING - df_vol')
+    df_vol = generate_new_columns(df_vol, trend=False, horizons=horizons)
+    # print('EFTER generate_new_columns - df_vol')
     # print(df_vol.head(3))
     
     df = df_curr.merge(df_vol, left_index=True, right_index=True, how='left')
@@ -158,11 +118,11 @@ def preprocess(df_curr_, df_vol_,df_gold_, df_infl_):
     # df = df.set_index('Date')
     
     if df_infl is not None:
-      df_infl = general_preprocessing(df_infl, trend=False, horizons=horizons_infl)
+      df_infl = generate_new_columns(df_infl, trend=False, horizons=horizons_infl)
       df = df.merge(df_infl, left_index=True, right_index=True, how='left')
     
     if df_gold is not None:     
-        df_gold = general_preprocessing(df_gold, trend=False, horizons=horizons) 
+        df_gold = generate_new_columns(df_gold, trend=False, horizons=horizons) 
         df = df.merge(df_gold, left_index=True, right_index=True, how='left')
        
     ticker_cols = [col for col in df.columns if 'Trend' in col and 'GLD' not in col]
@@ -170,6 +130,8 @@ def preprocess(df_curr_, df_vol_,df_gold_, df_infl_):
     if df.isna().sum().sum() > 0:
         df.dropna(inplace=True,axis=0)
     df = add_diff(df, 'diff', ticker_cols)
+    df = add_last_day(df)
+    
     
     # skit i detta för tillfället:
     # gold_cols = [col for col in df.columns if 'GLD' in col]
@@ -183,7 +145,7 @@ def main():
     # read in df_yf.csv
     df_curr = pd.read_csv('df_curr.csv', index_col=0)
     df_curr.index = pd.to_datetime(df_curr.index)
-    df_vol = pd.read_csv('df_volume.csv', index_col=0)
+    df_vol = pd.read_csv('df_vol.csv', index_col=0)
     df_vol.index = pd.to_datetime(df_vol.index)
     
     df_gold = pd.read_csv('gold.csv', index_col=0)
@@ -194,19 +156,20 @@ def main():
     
     df_curr = preprocessing_currency(df_curr)
     df_vol = preprocessing_currency(df_vol)
-    my_cols = None
-    if df_curr is not None and df_vol is not None:
-        # print('Antal NaN',df_curr.isna().sum().sum())
-        # print('curr',df_curr.columns)
-        # print('vol',df_vol.columns)
-        for col in df_curr.columns:
-            # print('preprocess', col )
-            df = preprocess(df_curr[[col]], df_vol[[col]],df_gold, df_infl)
-            my_cols = df.columns
-    else:
-        print('df_curr or df_vol is None'*10)
-    
-    # print(my_cols)  
-    
+    # my_cols = None
+    assert df_curr is not None, 'df_curr is None'
+    assert df_vol is not None, 'df_vol is None'
+
+    # print('Antal NaN',df_curr.isna().sum().sum())
+    # print('curr',df_curr.columns)
+    # print('vol',df_vol.columns)
+    for idx,col in enumerate(df_curr.columns):
+        print('preprocess', col )
+        df = preprocess(df_curr[[col]], df_vol[[col]],df_gold, df_infl)
+
+        assert not np.isinf(df).any().any(), f'hittade inf i {col}'
+        
+        
+    df.to_csv(f'preprocessed.csv')
 if __name__ == '__main__':
     main()      
