@@ -3,19 +3,6 @@
 
 
 #%% 
-# Komplett omtag av new_crypto.py
-# använd ML-modell från my_test_modeller.ipynb, scalers från scalers-foldern
-
-# TODO: Kör om StandardScaler
-# TODO: Kör om skapa XGBoost modell 
-# TODO  Publicera en första version 
-
-# TODO: Flera sidor? På andra sidan enbart prognoser för 6 valda
-
-# TODO: Slutligen: Byt namn till new_crypto.py igen innan publicering
-# TODO: skapa requrements.txt ta hjälp av ChatGPT
-# TODO: merge gridSearch branchen into master
-#
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
 
 #%%
