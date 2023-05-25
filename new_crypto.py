@@ -210,10 +210,8 @@ yf_ticker_names = read_ticker_names(filnamn)
 df_curr, df_vol = get_yf_data(yf_ticker_names)
 date, df = get_returns(df_curr, months)
 
-# n_examine = int(st.sidebar.number_input('Number of currencies to show', min_value=1, max_value=100, value=10))
-# df = pd.DataFrame(df_returns)
-
-# df.columns = [f'Return {months}mo']
+if st.sidebar.button('Get fresh data'):
+    st.caching.clear_cache()
 
 predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
 
@@ -257,10 +255,10 @@ if st.sidebar.checkbox('Show my own cryptocurrencies', False):
     my_own_list = ['ETH-USD', 'BTC-USD', 'BCH-USD', 'XRP-USD', 'ZRX-USD' ]
     
     my_own = df.loc[my_own_list]
-    
+    my_own.sort_values(by='Returns', ascending=False, inplace=True)
     my_own.columns = ['Close-price today',
                        f'Return {months}mo', 'Prob. price up tomorrow']
-    my_own.sort_values(by='Returns', ascending=False, inplace=True)
+    
     st.dataframe(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
