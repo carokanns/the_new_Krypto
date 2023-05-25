@@ -4,6 +4,7 @@
 
 #%% 
 # TODO: Fixa progress_bar även för get_data med yfinance
+# TODO: se till att plocka en intressant ticker för grafen, sortera innan st.dataframe(df)
 # TODO: Skapa ett helt nytt program men med Autogluon och streamlit som gör precis samma sak som detta program
 
 #%%
@@ -200,7 +201,7 @@ def get_returns(df, months):
     returns_df['Close'] = recent_prices
     returns_df['Returns'] = pd.DataFrame((recent_prices - old_prices) / old_prices)
 
-    return closest_index, returns_df
+    return closest_index, returns_df.sort_values(by='Returns', ascending=False)
 
 # get data
 filnamn = 'yf_tickers.txt'
@@ -220,7 +221,7 @@ predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation
 df['up Tomorrow'] = predictions.loc[df.index]
 st.title(f'Returns since {date.date()}')
 
-st.title('Predictions')
+# st.title('Predictions')
 df.index.name = 'Ticker'     
 
 df_view = df.sort_values(by='Returns', ascending=False)
@@ -259,7 +260,7 @@ if st.sidebar.checkbox('Show my own cryptocurrencies', False):
     
     my_own.columns = ['Close-price today',
                        f'Return {months}mo', 'Prob. price up tomorrow']
-    
+    my_own.sort_values(by='Returns', ascending=False, inplace=True)
     st.dataframe(my_own)
     myPick = st.selectbox(
         'Select one of my own cryptocurrencies for graph', my_own_list, index=0)
