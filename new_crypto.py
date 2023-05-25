@@ -113,15 +113,16 @@ MAX_MONTHS = 24
 
 # hämta yf_tickers från yfinance
 @st.cache_data
-def get_yf_data(tickers, time_period='2y'):
+def get_from_Yahoo_Finance(tickers,version, time_period='2y'):
     # Hämta historiska data från yfinance
-    # yf_data = yf.download(tickers, start='2019-01-01', end=dt.today().date(), progress=False)
+    placeholder = st.empty()  # Create an empty placeholder
+    placeholder.info(f'Getting data for {len(tickers)} crypto currencies - Please wait...')
     yf_data = yf.download(tickers, interval='1d',
                        period=time_period, group_by='ticker', auto_adjust=True, progress=True)
 
     df_cur = pd.DataFrame(yf_data.xs('Close', axis=1, level=1)) 
     df_vol = pd.DataFrame(yf_data.xs('Volume', axis=1, level=1)) 
-   
+    placeholder.empty()
     return df_cur, df_vol
 
 
@@ -174,7 +175,8 @@ def get_predictions(df_curr_, df_vol_, df_gold, df_infl):
             pred_value = my_model.predict_proba(df[predictors].iloc[-1:])[:,1]
 
             predictions.loc[column_name] = np.round(pred_value,9)
-            progress_bar.progress((cnt + 1) / len(df_curr.columns), 'Please wait...') 
+            progress_bar.progress((cnt + 1) / len(df_curr.columns),
+                                  f'Predicted {cnt + 1} of {len(df_curr.columns)} currencies - Please wait...')
                  
         progress_placeholder.empty()
         
@@ -207,12 +209,15 @@ def get_returns(df, months):
 filnamn = 'yf_tickers.txt'
 yf_ticker_names = read_ticker_names(filnamn)
 
-df_curr, df_vol = get_yf_data(yf_ticker_names)
-date, df = get_returns(df_curr, months)
-
+# version code in order to override chache state
+version = st.session_state.get("version", 0)
 if st.sidebar.button('Get fresh data'):
-    st.caching.clear_cache()
+    version += 1
+    st.session_state.version = version
 
+df_curr, df_vol = get_from_Yahoo_Finance(yf_ticker_names,version)
+date, df = get_returns(df_curr, months)
+   
 predictions = get_predictions(df_curr, df_vol, df_gold, inflation[['US_inflation']])
 
 # Ersätt 'up Tomorrow' kolumnen i winners och losers med förutsägelserna
@@ -220,10 +225,10 @@ df['up Tomorrow'] = predictions.loc[df.index]
 st.title(f'Returns since {date.date()}')
 
 # st.title('Predictions')
-df.index.name = 'Ticker'     
+df.index.name = 'Ticker'    
 
 df_view = df.sort_values(by='Returns', ascending=False)
-df_view['Close'] = df_view['Close'].map('{:,.6f}'.format)
+# df_view['Close'] = df_view['Close'].map('{:,.6f}'.format)
 # rename columns
 df_view.columns = ['Close-price today', f'Return {months}mo', 'Prob. price up tomorrow']
 st.dataframe(df_view)
@@ -232,13 +237,13 @@ bestPick = st.selectbox('Select one for the graph', df.index, index=0)
 st.info(f'Full {bestPick}')
 st.line_chart(df_curr[bestPick]) # type: ignore
 
-if st.sidebar.checkbox('Show inflation data', True):
+if st.sidebar.checkbox('Show inflation data', False):
     # make a line graph of the inflations
     inflations = get_inflation_data()
     st.title("Inflation in US and Sweden")
     st.line_chart(inflations[['US_inflation', 'SE_inflation']])
     
-if st.sidebar.checkbox('Show Gold data', True):
+if st.sidebar.checkbox('Show Gold data', False):
     # make a line graph of the inflations
     df_gold = get_gold_data()
     st.title("Gold price")
